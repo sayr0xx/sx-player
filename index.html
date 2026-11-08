@@ -166,6 +166,7 @@ svg.f{fill:currentColor;stroke:none}
 .card{padding:16px;border-radius:26px;margin-bottom:12px}
 .card h3{font-size:15px;margin-bottom:6px}
 .card p{color:var(--mut);font-size:13px}
+#diag{white-space:pre-wrap;word-break:break-word}
 .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
 .stat{padding:14px;border-radius:24px;text-align:left}
 .stat b{display:block;font-size:20px;color:var(--tint)}
@@ -286,6 +287,8 @@ h1{font-size:44px}
       <button class="ghost" data-act="persist">Запросить постоянное хранилище</button></div>
     <div class="glass card"><h3>Важно</h3><p>Музыка хранится только на этом устройстве, внутри Telegram или браузера. Очистка данных или кэша Telegram либо браузера может удалить локальную библиотеку. Оригиналы файлов лучше сохранить отдельно.</p></div>
     <div class="glass card"><h3>Бот @sayr0xxsongbot</h3><p>Автодобавление треков из бота пока недоступно: нужен backend (бот, сервер и защищённый API). Mini App не может читать чат Telegram напрямую. Сейчас работает ручное добавление файлов.</p></div>
+    <div class="glass card"><h3>Диагностика</h3><p id="diag">Ошибок нет.</p>
+      <button class="ghost" data-act="lbcheck">Проверить сервер топа</button><p id="lbcheck"></p></div>
     <div class="glass card"><h3>Библиотека</h3><button class="ghost danger" data-act="clear">Удалить всю библиотеку</button>
       <button class="ghost danger" data-act="resetstats">Сбросить статистику</button></div>
   </section>
@@ -322,7 +325,16 @@ h1{font-size:44px}
 <div id="toast" class="toast glass"></div>
 <input id="file" type="file" multiple accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" class="off">
 <script>
-window.addEventListener('error',e=>{const t=document.getElementById('toast');if(t){t.textContent='Ошибка: '+e.message;t.classList.add('show');}});
+const errLog = [];
+function logErr(m) {
+  errLog.push(new Date().toLocaleTimeString('ru-RU') + ' ' + m); if (errLog.length > 8) errLog.shift();
+  const d = document.getElementById('diag'); if (d) d.textContent = errLog.join('\n');
+}
+window.addEventListener('error', e => {
+  if (!e.filename && e.message === 'Script error.') return logErr('Script error. (сторонний скрипт, браузер скрыл детали)'); // не пугаем пользователя
+  logErr(`${e.message} (${(e.filename || '').split('/').pop()}:${e.lineno})`); toast('Ошибка: ' + e.message);
+});
+window.addEventListener('unhandledrejection', e => logErr('Promise: ' + ((e.reason && e.reason.message) || e.reason)));
 'use strict';
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const S = (d, f) => `<svg viewBox="0 0 24 24" class="${f ? 'f' : ''}">${d}</svg>`;
@@ -349,10 +361,11 @@ const uid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now() + '' + Ma
 
 /* ---------- Telegram (не ломает запуск вне Telegram) ---------- */
 const tg = window.Telegram && window.Telegram.WebApp;
+const tv = v => { try { return !!(tg && tg.isVersionAtLeast && tg.isVersionAtLeast(v)); } catch (e) { return false; } };
 if (tg) {
   try { tg.ready(); tg.expand(); } catch (e) {}
-  try { tg.setHeaderColor('#07040d'); tg.setBackgroundColor('#07040d'); } catch (e) {}
-  try { tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) {}
+  if (tv('6.9')) try { tg.setHeaderColor('#07040d'); tg.setBackgroundColor('#07040d'); } catch (e) {}
+  if (tv('7.7')) try { tg.disableVerticalSwipes(); } catch (e) {}
 }
 const haptic = () => { try { tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred('light'); } catch (e) {} };
 const ask = m => new Promise(r => tg && tg.isVersionAtLeast && tg.isVersionAtLeast('6.2') ? tg.showConfirm(m, r) : r(confirm(m)));
@@ -669,6 +682,7 @@ document.addEventListener('click', async e => {
   else if (a === 'autohue') { th.auto = !th.auto; if (th.auto) { th.t0 = Date.now(); delete th.fix; } else th.fix = lastHue; saveTheme(); themeTick(); updateThemeUI(); }
   else if (a === 'lite') { th.lite = !th.lite; saveTheme(); updateThemeUI(); }
   else if (a === 'lbtoggle') lbToggle();
+  else if (a === 'lbcheck') lbCheck();
   else if (a === 'resetstats') {
     if (!await ask('Сбросить всю статистику прослушивания?')) return;
     await tx('stats', 'readwrite', s => s.clear()).catch(() => {}); stats = {}; render(false); toast('Статистика сброшена');
@@ -764,6 +778,17 @@ async function lbToggle() {
   else { lbSet(true); lbLoad(true); }
   renderLb();
 }
+async function lbCheck() { // подсказка, что именно не настроено на сервере
+  const out = $('#lbcheck'); out.textContent = 'Проверяю…';
+  try {
+    const r = await fetch('/api/leaderboard', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg ? tg.initData : '' }) });
+    out.textContent = r.status === 404 ? '❌ Файл api/leaderboard.js не найден на сайте — загрузи его в GitHub (шаг 2)'
+      : r.status === 500 ? '⚠️ Файл на месте, но не заданы BOT_TOKEN или база (шаги 3–5)'
+      : r.status === 502 ? '⚠️ База не отвечает — проверь, что Upstash подключён к проекту (шаг 3)'
+      : r.status === 401 ? '✅ Сервер настроен правильно. Открой приложение из бота в Telegram и вступи в топ'
+      : r.ok ? '✅ Всё работает' : 'Ошибка сервера: ' + r.status;
+  } catch (e) { out.textContent = '❌ Нет связи с сервером (приложение открыто не с сайта на Vercel?)'; }
+}
 function renderLb() {
   const on = lbOn(); let h;
   if (!(tg && tg.initData)) h = '<p class="empty">Топ слушателей работает только внутри Telegram.</p>';
@@ -785,7 +810,7 @@ if (th.auto === undefined) th.auto = true;
 const saveTheme = () => { try { localStorage.setItem('sx-theme', JSON.stringify(th)); } catch (e) {} };
 const hueAt = k => HUES[((k % 7) + 7) % 7] + 360 * Math.floor(k / 7);
 const hslHex = (h, s, l) => { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l), f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); }; return '#' + f(0) + f(8) + f(4); };
-let lastHue = -1, lastHdr = 0;
+let lastHue = -1, lastHdr = 0, sentHue = -99;
 function themeTick() {
   let h = th.fix === undefined ? 205 : th.fix;
   if (th.auto) {
@@ -795,9 +820,9 @@ function themeTick() {
   }
   h = ((h % 360) + 360) % 360;
   if (Math.abs(h - lastHue) > .05) { lastHue = h; document.documentElement.style.setProperty('--h', h.toFixed(1)); }
-  if (tg && Date.now() - lastHdr > 5000) { // цвет шапки Telegram под цвет сайта
-    lastHdr = Date.now(); const c = hslHex(h, 80, 4);
-    try { tg.setHeaderColor(c); tg.setBackgroundColor(c); } catch (e) {}
+  if (Date.now() - lastHdr > 20000 && Math.abs(h - sentHue) > 3) { // цвет шапки Telegram под цвет сайта (редко и только если клиент поддерживает)
+    lastHdr = Date.now(); sentHue = h; const c = hslHex(h, 80, 4);
+    if (tv('6.9')) try { tg.setHeaderColor(c); tg.setBackgroundColor(c); } catch (e) {}
     const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = c;
   }
 }
