@@ -27,9 +27,10 @@ function checkInitData(raw, botToken) {
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' });
-  if (!process.env.BOT_TOKEN || !REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'not configured' });
+  const tokens = [process.env.BOT_TOKEN, process.env.INBOX_BOT_TOKEN].filter(Boolean);
+  if (!tokens.length || !REDIS_URL || !REDIS_TOKEN) return res.status(500).json({ error: 'not configured' });
   const { initData, sec, remove, track } = req.body || {};
-  const user = typeof initData === 'string' && checkInitData(initData, process.env.BOT_TOKEN);
+  const user = typeof initData === 'string' && tokens.map(t => checkInitData(initData, t)).find(Boolean);
   if (!user || !user.id) return res.status(401).json({ error: 'bad initData' });
   const id = String(user.id);
   const name = (user.username ? '@' + user.username : user.first_name || 'user').slice(0, 24);
