@@ -168,7 +168,9 @@ svg.f{fill:currentColor;stroke:none}
 .card{padding:16px;border-radius:26px;margin-bottom:12px}
 .card h3{font-size:15px;margin-bottom:6px}
 .card p{color:var(--mut);font-size:13px}
-#diag{white-space:pre-wrap;word-break:break-word}
+#diag,#botcheck{white-space:pre-wrap;word-break:break-word}
+.botcard{margin:6px 0 10px;padding:14px 16px;border-radius:26px}
+.botrow{margin-bottom:6px}
 .sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
 .stat{padding:14px;border-radius:24px;text-align:left}
 .stat b{display:block;font-size:20px;color:var(--tint)}
@@ -277,6 +279,7 @@ h1{font-size:44px}
       </div>
     </div>
     <div class="colR">
+      <div id="botcard" class="glass card botcard" hidden></div>
       <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input id="q" type="search" placeholder="Поиск по моей музыке" autocomplete="off"></div>
       <label class="add" for="file"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><div>Добавить музыку<small>MP3 · M4A · AAC · WAV · OGG · FLAC</small></div></label>
       <div id="recent-wrap"><h2>Недавно добавленные</h2><div id="recent" class="car"></div></div>
@@ -310,6 +313,10 @@ h1{font-size:44px}
       <div id="th-chips" class="tchips"></div>
       <button id="b-thedit" class="ghost" data-act="thedit" hidden>Редактировать выбранную тему</button>
       <button id="b-lite" class="ghost" data-act="lite"></button></div>
+    <div class="glass card"><h3>Музыка из бота</h3><p id="bot-state"></p>
+      <button id="b-botauto" class="ghost" data-act="botauto"></button>
+      <button class="ghost" data-act="botsync">Проверить новую музыку сейчас</button>
+      <button class="ghost" data-act="botcheck">Проверить настройку сервера</button><p id="botcheck"></p></div>
     <div class="glass card"><h3>Хранилище</h3><p id="st-usage"></p><p id="st-persist"></p>
       <button class="ghost" data-act="persist">Запросить постоянное хранилище</button></div>
     <div class="glass card"><h3>Важно</h3><p>Музыка хранится только на этом устройстве, внутри Telegram или браузера. Очистка данных или кэша Telegram либо браузера может удалить локальную библиотеку. Оригиналы файлов лучше сохранить отдельно.</p></div>
@@ -533,20 +540,21 @@ async function backfillCovers() { // обложки для треков, доб�
 }
 
 /* ---------- Добавление ---------- */
-async function addFiles(files) {
+async function addFiles(files, quiet) {
   let ok = 0, bad = 0;
-  toast('Добавляю…');
+  if (!quiet) toast('Добавляю…');
   for (const f of files) {
     const ext = f.name.split('.').pop().toLowerCase();
     const blob = f.type ? f : new Blob([f], { type: MIME[ext] || '' });
     const dur = await probe(blob);
     if (dur === null) { bad++; continue; }
-    const t = { id: uid(), title: f.name.replace(/\.[^.]+$/, '').replace(/_+/g, ' '), blob, size: f.size, duration: dur, fav: false, addedAt: Date.now(), cover: await readCover(f) };
+    const t = { id: uid(), title: f.title || f.name.replace(/\.[^.]+$/, '').replace(/_+/g, ' '), blob, size: f.size, duration: dur, fav: false, addedAt: Date.now(), tg: f.tg || null, cover: await readCover(f) };
     try { await tx('tracks', 'readwrite', s => s.put(t)); tracks.push(t); coverDone.add(t.id); tx('covers', 'readwrite', s => s.put({ id: t.id, blob: t.cover })).catch(() => {}); ok++; }
-    catch (e) { toast(dbErr(e)); render(true); return; }
+    catch (e) { toast(dbErr(e)); render(true); return ok; }
   }
-  toast(`Добавлено: ${ok}` + (bad ? `. Не воспроизводится в этом браузере: ${bad}` : ''));
-  if (ok) { show('music'); if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(persistInfo); }
+  if (!quiet || bad) toast(`Добавлено: ${ok}` + (bad ? `. Не воспроизводится в этом браузере: ${bad}` : ''));
+  if (ok) { if (quiet) render(true); else show('music'); if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(persistInfo); }
+  return ok;
 }
 $('#file').addEventListener('change', e => { const f = [...e.target.files]; e.target.value = ''; if (f.length) addFiles(f); });
 
@@ -740,6 +748,9 @@ document.addEventListener('click', async e => {
   else if (a === 'tecancel') closeEditor();
   else if (a === 'tedel') teDelete();
   else if (a === 'lite') { th.lite = !th.lite; saveTheme(); updateThemeUI(); }
+  else if (a === 'botall' || a === 'botsync') botSync(true);
+  else if (a === 'botauto') { try { localStorage.setItem('sx-auto', autoBot() ? '0' : '1'); } catch (e) {} renderBot(); }
+  else if (a === 'botcheck') botCheck();
   else if (a === 'lbtoggle') lbToggle();
   else if (a === 'lbcheck') lbCheck();
   else if (a === 'resetstats') {
@@ -974,6 +985,62 @@ async function teDelete() {
 }
 setInterval(themeTick, 1000); themeTick();
 
+/* ---------- Музыка из бота: сервер хранит «входящие», приложение забирает их в библиотеку ---------- */
+const autoBot = () => { try { return localStorage.getItem('sx-auto') !== '0'; } catch (e) { return true; } };
+let inbox = [], botBusy = false, botErr = '';
+const EXT = { 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/flac': 'flac', 'audio/wav': 'wav' };
+async function botApi(path, body) {
+  const r = await fetch('/api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ initData: tg ? tg.initData : '', ...body }) });
+  if (!r.ok) {
+    const e = new Error(r.status === 404 ? 'сервер не подключён' : r.status === 401 ? 'не прошла проверка Telegram' : r.status === 500 ? 'на сервере не заданы переменные' : 'ошибка ' + r.status);
+    e.body = await r.text().catch(() => ''); throw e;
+  }
+  return r;
+}
+async function botAdd(it) {
+  const blob = await (await botApi('file', { id: it.id })).blob(), name = (it.artist ? it.artist + ' - ' : '') + it.title;
+  const f = new File([blob], `${name.replace(/[\\/:*?"<>|]/g, '_')}.${EXT[blob.type] || 'mp3'}`, { type: blob.type || 'audio/mpeg' });
+  f.tg = it.id; f.title = name;
+  const ok = await addFiles([f], true);
+  if (ok) await botApi('inbox', { action: 'done', ids: [it.id] });
+  return ok;
+}
+async function botSync(force) { // force = добавить всё, даже если автодобавление выключено
+  if (!(tg && tg.initData)) { if (force) toast('Работает только внутри Telegram'); return; }
+  if (botBusy) return; botBusy = true; let added = 0;
+  try {
+    inbox = (await (await botApi('inbox', { action: 'list' })).json()).items;
+    const have = new Set(tracks.map(t => t.tg).filter(Boolean)), dup = inbox.filter(i => have.has(i.id)); // уже есть в библиотеке
+    if (dup.length) { await botApi('inbox', { action: 'done', ids: dup.map(i => i.id) }); inbox = inbox.filter(i => !have.has(i.id)); }
+    botErr = '';
+    if (force || autoBot()) for (const it of [...inbox]) {
+      try { if (await botAdd(it)) { added++; inbox = inbox.filter(x => x.id !== it.id); } }
+      catch (e) { botErr = /too big/.test(e.body || '') ? 'файл больше 20 МБ — Telegram не отдаёт такие боту' : (e.body || e.message); toast('Не удалось скачать «' + it.title + '»: ' + botErr); break; }
+    }
+  } catch (e) { botErr = e.message; }
+  botBusy = false; renderBot();
+  if (added) toast(`Из бота добавлено: ${added}`); else if (force === true && !botErr) toast(inbox.length ? 'Не всё удалось добавить' : 'Новой музыки нет');
+}
+function renderBot() {
+  const c = $('#botcard'); c.hidden = !inbox.length;
+  c.innerHTML = inbox.length ? `<h3>Новая музыка из бота: ${inbox.length}</h3>` + inbox.slice(0, 4).map(i => `<div class="botrow meta"><b>${esc(i.title)}</b><span>${esc(i.artist)} ${fmt(i.dur)}</span></div>`).join('') + '<button class="ghost" data-act="botall">Добавить в библиотеку</button>' : '';
+  $('#b-botauto').textContent = 'Автодобавление при открытии: ' + (autoBot() ? 'вкл' : 'выкл');
+  $('#bot-state').textContent = !(tg && tg.initData) ? 'Работает только внутри Telegram: песни из чата с ботом сами появляются в библиотеке.' : botErr ? 'Ошибка: ' + botErr : 'Всё подключено. Ждут добавления: ' + inbox.length;
+}
+async function botCheck() {
+  const out = $('#botcheck'); out.textContent = 'Проверяю…';
+  try {
+    const r = await fetch('/api/inbox', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list', initData: tg ? tg.initData : '' }) });
+    out.textContent = r.status === 404 ? '❌ Файлы api/inbox.js и api/file.js не найдены на сайте'
+      : r.status === 500 ? '⚠️ Файлы на месте, но не заданы BOT_TOKEN или база'
+      : r.status === 502 ? '⚠️ База не отвечает — проверь подключение Upstash'
+      : r.status === 401 ? '✅ Сервер настроен. Открой приложение из бота — и музыка начнёт подтягиваться'
+      : r.ok ? '✅ Всё работает' : 'Ошибка сервера: ' + r.status;
+  } catch (e) { out.textContent = '❌ Нет связи с сервером'; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) botSync(); });
+setInterval(() => { if (!document.hidden) botSync(); }, 45000);
+
 /* ---------- Хранилище ---------- */
 async function persistInfo() {
   if (!navigator.storage) { $('#st-usage').textContent = 'Storage API не поддерживается.'; return; }
@@ -995,7 +1062,7 @@ async function persistInfo() {
     themes = await tx('themes', 'readonly', s => s.getAll());
   } catch (e) { toast('IndexedDB недоступна: библиотека не сохранится'); }
   updateOpts(); applyVol(); updateThemeUI(); themeRefresh();
-  render(true); persistInfo(); backfillCovers();
+  render(true); persistInfo(); backfillCovers(); renderBot(); botSync();
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(persistInfo);
 })();
 </script>
