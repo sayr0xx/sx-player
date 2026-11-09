@@ -30,6 +30,8 @@ radial-gradient(70% 45% at 15% 0%,hsl(var(--h) 85% 30% / .8),transparent 70%),
 radial-gradient(60% 40% at 100% 30%,hsl(calc(var(--h) + 30) 80% 28% / .65),transparent 70%),
 radial-gradient(80% 50% at 40% 115%,hsl(calc(var(--h) - 20) 85% 34% / .85),transparent 70%),
 linear-gradient(180deg,hsl(var(--h) 75% 7%),hsl(var(--h) 80% 3.5%))}
+.bgimg{position:absolute;inset:-30px;background-size:cover;background-repeat:no-repeat}
+.bgdim{position:absolute;inset:0}
 .wave{position:absolute;left:0;bottom:0;width:200%;height:110px;animation:wave 22s linear infinite}
 .wave path{fill:hsl(var(--h) 90% 58% / .16)}
 .wave.w2{height:80px;animation-duration:34s;animation-direction:reverse}
@@ -196,6 +198,29 @@ svg.f{fill:currentColor;stroke:none}
 .toast{position:fixed;left:50%;top:calc(var(--st) + 12px);z-index:20;padding:10px 16px;border-radius:999px;font-size:13px;max-width:90%;transform:translate(-50%,-20px);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
+/* Темы и редактор */
+.tchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.tchip{display:flex;align-items:center;gap:8px;padding:7px 14px 7px 7px;border-radius:999px;border:0;color:var(--tx);font:600 13px inherit;background:rgb(255 255 255 / .08);box-shadow:inset 0 0 0 1px rgb(255 255 255 / .18)}
+.tchip i{width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 1px rgb(255 255 255 / .35);font-style:normal;display:grid;place-items:center;font-size:15px}
+.tchip.on{background:hsl(var(--h) 100% 65% / .22);box-shadow:inset 0 0 0 2px var(--a),0 0 16px hsl(var(--h) 100% 60% / .4)}
+.te{position:fixed;left:0;right:0;bottom:0;z-index:12;display:flex;justify-content:center;pointer-events:none}
+.te-b{pointer-events:auto;width:min(100%,520px);margin:0 10px calc(var(--sb) + 10px);padding:14px 16px 16px;border-radius:30px;max-height:58vh;overflow:auto;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);background:linear-gradient(145deg,hsl(var(--h) 60% 12% / .82),hsl(var(--h) 70% 6% / .88))}
+.te-h{display:flex;align-items:center;justify-content:space-between;font-size:16px}
+.te-in{width:100%;padding:11px 14px;margin-top:6px;border:0;border-radius:14px;background:rgb(255 255 255 / .09);color:var(--tx);font:inherit;outline:none}
+.seg{display:flex;gap:6px;margin:10px 0}
+.seg button{flex:1;padding:10px;border:0;border-radius:14px;background:rgb(255 255 255 / .08);color:var(--tx);font:inherit}
+.seg button.on{background:hsl(var(--h) 100% 65% / .3);box-shadow:inset 0 0 0 1.5px var(--a)}
+.te-sl{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--mut)}
+.te-sl>span{flex:0 0 92px}
+.te-sl input[type=range]{flex:1;min-width:0;accent-color:var(--a);height:20px}
+.te-sl input[type=color]{width:48px;height:38px;border:0;border-radius:12px;background:none;padding:0}
+input.hue{-webkit-appearance:none;appearance:none;height:12px!important;border-radius:6px;background:linear-gradient(90deg,hsl(0 90% 55%),hsl(60 90% 55%),hsl(120 90% 55%),hsl(180 90% 55%),hsl(240 90% 55%),hsl(300 90% 55%),hsl(360 90% 55%))}
+input.hue::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgb(0 0 0 / .45)}
+input.hue::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0;box-shadow:0 0 0 2px rgb(0 0 0 / .45)}
+.te-act{margin-top:6px}
+.te-act .add{margin-top:12px}
+.srow .meta .ft{display:block;color:var(--tint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 /* Лёгкий режим (слабые телефоны): без размытия и волн */
 .lite .player,.lite .nav,.lite .search,.lite #sheet-b,.lite .toast{-webkit-backdrop-filter:none;backdrop-filter:none}
 .lite .wave{display:none}
@@ -230,6 +255,7 @@ h1{font-size:44px}
 .sheet{align-items:center;justify-content:center}
 #sheet-b{max-width:420px;margin:0}
 }
+@media (min-width:900px){.te{justify-content:flex-end}.te-b{margin:0 24px 24px;width:400px;max-height:82vh}}
 @media (hover:hover){
 ::-webkit-scrollbar{width:8px}::-webkit-scrollbar-thumb{background:hsl(var(--h) 100% 65% / .35);border-radius:8px}
 .row:hover,.tile:hover,.chip:hover,.ghost:hover{filter:brightness(1.18)}.nav button:hover{color:#fff}
@@ -238,7 +264,7 @@ h1{font-size:44px}
 </style>
 </head>
 <body>
-<div class="bg"><svg class="wave" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg><svg class="wave w2" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg></div>
+<div class="bg"><div class="bgimg" hidden></div><div class="bgdim" hidden></div><svg class="wave" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg><svg class="wave w2" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg></div>
 <main>
   <section id="v-music" class="view active">
     <div class="colL">
@@ -275,13 +301,14 @@ h1{font-size:44px}
     <h2>Топ слушателей</h2>
     <div id="lb"></div><p id="lb-me" class="lbme"></p>
     <button id="lb-toggle" class="ghost" data-act="lbtoggle"></button>
-    <p class="note">Участие добровольное. В топ уходят только твой Telegram ID, имя и общее время прослушивания, без названий треков и файлов. Топ работает через сервер (см. инструкцию), время считает твоё устройство.</p>
+    <p class="note">Участие добровольное. В топ уходят твой Telegram ID, имя, общее время прослушивания и название самого часто слушаемого трека (только название, без файлов). Топ работает через сервер (см. инструкцию), время считает твоё устройство.</p>
   </section>
 
   <section id="v-set" class="view">
     <h1 class="sm">Настройки</h1>
-    <div class="glass card"><h3>Оформление</h3><p>Цвет сайта плавно меняется каждые 5 минут по цветам радуги, начиная с морского.</p>
-      <button id="b-auto" class="ghost" data-act="autohue"></button>
+    <div class="glass card"><h3>Тема</h3><p>Выбери готовую тему или создай свою: градиент или своя картинка с редактором. «Авто-радуга» плавно меняет цвет каждые 5 минут.</p>
+      <div id="th-chips" class="tchips"></div>
+      <button id="b-thedit" class="ghost" data-act="thedit" hidden>Редактировать выбранную тему</button>
       <button id="b-lite" class="ghost" data-act="lite"></button></div>
     <div class="glass card"><h3>Хранилище</h3><p id="st-usage"></p><p id="st-persist"></p>
       <button class="ghost" data-act="persist">Запросить постоянное хранилище</button></div>
@@ -321,6 +348,29 @@ h1{font-size:44px}
   <button data-tab="set" aria-label="Настройки"><i data-i="set"></i><span>Настройки</span></button>
 </nav>
 
+<div id="te" class="te" hidden>
+  <div class="te-b glass">
+    <div class="te-h"><b id="te-title">Новая тема</b><button class="ib" data-act="tecancel" aria-label="Закрыть" data-i="close"></button></div>
+    <input id="te-name" class="te-in" maxlength="24" placeholder="Название темы" autocomplete="off">
+    <div class="seg"><button data-act="tetype" data-v="grad">Градиент</button><button data-act="tetype" data-v="img">Картинка</button></div>
+    <div id="te-grad">
+      <div class="te-sl"><span>Цвета</span><input type="color" id="te-c1"><input type="color" id="te-c2"><input type="color" id="te-c3"></div>
+      <label class="te-sl"><span>Угол</span><input type="range" id="te-ang" min="0" max="360"></label>
+    </div>
+    <div id="te-img">
+      <button class="ghost" data-act="tepick">Выбрать картинку из галереи</button><input type="file" id="te-file" accept="image/*" class="off">
+      <p id="te-imgname" class="note"></p>
+      <label class="te-sl"><span>Масштаб</span><input type="range" id="te-z" min="100" max="300"></label>
+      <label class="te-sl"><span>Слева–справа</span><input type="range" id="te-x" min="0" max="100"></label>
+      <label class="te-sl"><span>Сверху–вниз</span><input type="range" id="te-y" min="0" max="100"></label>
+      <label class="te-sl"><span>Размытие</span><input type="range" id="te-blur" min="0" max="24"></label>
+      <label class="te-sl"><span>Затемнение</span><input type="range" id="te-dim" min="0" max="85"></label>
+    </div>
+    <label class="te-sl"><span>Цвет акцента</span><input type="range" id="te-acc" class="hue" min="0" max="360"></label>
+    <button class="ghost" data-act="teauto">Подобрать акцент автоматически</button>
+    <div class="te-act"><button class="add" data-act="tesave">Сохранить тему</button><button id="te-del" class="ghost danger" data-act="tedel">Удалить тему</button></div>
+  </div>
+</div>
 <div id="sheet" class="sheet"><div id="sheet-b" class="glass"></div></div>
 <div id="toast" class="toast glass"></div>
 <input id="file" type="file" multiple accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.flac" class="off">
@@ -351,6 +401,7 @@ const IC = {
   vol: S('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>'),
   mute: S('<path d="M4 9v6h4l5 4V5L8 9z"/><path d="M17 9l5 6M22 9l-5 6"/>'),
   search: S('<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>'),
+  close: S('<path d="M6 6l12 12M18 6L6 18"/>'),
   chart: S('<path d="M5 20V11M12 20V4M19 20v-6"/>')
 };
 const MIME = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', flac: 'audio/flac' };
@@ -377,8 +428,8 @@ $$('[data-i]').forEach(e => e.innerHTML = IC[e.dataset.i]);
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((ok, no) => {
-  const r = indexedDB.open('sayr0xx-player', 3);
-  r.onupgradeneeded = () => { const d = r.result; ['tracks', 'playlists', 'covers', 'stats'].forEach(n => d.objectStoreNames.contains(n) || d.createObjectStore(n, { keyPath: 'id' })); };
+  const r = indexedDB.open('sayr0xx-player', 4);
+  r.onupgradeneeded = () => { const d = r.result; ['tracks', 'playlists', 'covers', 'stats', 'themes'].forEach(n => d.objectStoreNames.contains(n) || d.createObjectStore(n, { keyPath: 'id' })); };
   r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error);
 });
 const tx = (st, mode, fn) => dbp.then(d => new Promise((ok, no) => {
@@ -679,7 +730,15 @@ document.addEventListener('click', async e => {
   else if (a === 'shuf') { shuf = !shuf; hist = []; played.clear(); if (cur) played.add(cur.id); saveOpts(); updateOpts(); toast(shuf ? 'Случайный порядок: вкл' : 'Случайный порядок: выкл'); }
   else if (a === 'rep') { rep = { off: 'all', all: 'one', one: 'off' }[rep]; saveOpts(); updateOpts(); toast({ all: 'Повтор: все треки', one: 'Повтор: один трек', off: 'Повтор выключен' }[rep]); }
   else if (a === 'mute') { muted = !muted; applyVol(); saveOpts(); updateOpts(); }
-  else if (a === 'autohue') { th.auto = !th.auto; if (th.auto) { th.t0 = Date.now(); delete th.fix; } else th.fix = lastHue; saveTheme(); themeTick(); updateThemeUI(); }
+  else if (a === 'thsel') { th.sel = el.dataset.v; if (th.sel === 'auto') th.t0 = Date.now(); saveTheme(); themeRefresh(); renderThemes(); }
+  else if (a === 'thnew') openEditor();
+  else if (a === 'thedit') { const t = activeTheme(); if (t) openEditor(t); }
+  else if (a === 'tetype') { draft.mode = el.dataset.v; teFill(); themeRefresh(); }
+  else if (a === 'tepick') $('#te-file').click();
+  else if (a === 'teauto') { draft.acc = draft.mode === 'img' && draft.imgHue !== undefined ? draft.imgHue : hexHue(draft.c[1]); teFill(); themeRefresh(); }
+  else if (a === 'tesave') teSave();
+  else if (a === 'tecancel') closeEditor();
+  else if (a === 'tedel') teDelete();
   else if (a === 'lite') { th.lite = !th.lite; saveTheme(); updateThemeUI(); }
   else if (a === 'lbtoggle') lbToggle();
   else if (a === 'lbcheck') lbCheck();
@@ -766,10 +825,11 @@ async function lbCall(body) {
   if (!r.ok) throw new Error(r.status === 404 ? 'сервер не подключён' : r.status === 401 ? 'не прошла проверка Telegram' : 'ошибка ' + r.status);
   return r.json();
 }
+const topTitle = () => { const t = tracks.filter(x => stats[x.id] && stats[x.id].sec > 0).sort((a, b) => stats[b.id].sec - stats[a.id].sec)[0]; return t ? t.title : ''; };
 async function lbLoad(send) {
   if (!(tg && tg.initData)) return renderLb();
   if (lbBusy) return; lbBusy = true;
-  try { lbData = await lbCall(send && lbOn() ? { sec: Math.floor(rec(GID).sec) } : {}); lbErr = ''; lbSent = Date.now(); } catch (e) { lbErr = e.message; }
+  try { lbData = await lbCall(send && lbOn() ? { sec: Math.floor(rec(GID).sec), track: topTitle() } : {}); lbErr = ''; lbSent = Date.now(); } catch (e) { lbErr = e.message; }
   lbBusy = false; renderLb();
 }
 const lbSync = () => { if (lbOn() && tg && tg.initData && Date.now() - lbSent > 60000) lbLoad(true); };
@@ -794,42 +854,123 @@ function renderLb() {
   if (!(tg && tg.initData)) h = '<p class="empty">Топ слушателей работает только внутри Telegram.</p>';
   else if (lbErr) h = `<p class="empty">Топ недоступен: ${esc(lbErr)}.</p>`;
   else if (!lbData) h = '<p class="empty">Загрузка…</p>';
-  else h = lbData.top.length ? lbData.top.map((u, i) => `<div class="glass srow${u.me ? ' me' : ''}"><b>${i + 1}</b><div class="meta"><b>${esc(u.name)}</b><span>${dur(u.sec)}</span></div></div>`).join('') : '<p class="empty">В топе пока никого. Нажми «Участвовать» — и будешь первым.</p>';
+  else h = lbData.top.length ? lbData.top.map((u, i) => `<div class="glass srow${u.me ? ' me' : ''}"><b>${i + 1}</b><div class="meta"><b>${esc(u.name)}</b><span>${dur(u.sec)}</span>${u.track ? `<span class="ft">♪ ${esc(u.track)}</span>` : ''}</div></div>`).join('') : '<p class="empty">В топе пока никого. Нажми «Участвовать» — и будешь первым.</p>';
   $('#lb').innerHTML = h;
   $('#lb-me').textContent = on && lbData && lbData.me ? `Твоё место: ${lbData.me.rank} · ${dur(lbData.me.sec)}` : '';
   $('#lb-toggle').textContent = on ? 'Выйти из топа' : 'Участвовать в топе';
   $('#lb-toggle').hidden = !(tg && tg.initData);
 }
 
-/* ---------- Тема: морской цвет; каждые 5 минут плавно переходит к следующему цвету радуги ---------- */
-const HUES = [205, 270, 350, 380, 408, 495, 535]; // морской → фиолетовый → красный → оранжевый → жёлтый → зелёный → бирюзовый → снова морской
+/* ---------- Темы: готовые, свой градиент, своя картинка + редактор ---------- */
+const HUES = [205, 270, 350, 380, 408, 495, 535]; // авто-радуга: морской → фиолетовый → красный → оранжевый → жёлтый → зелёный → бирюзовый → снова морской
 const STEP = 5 * 60e3, FADE = 90e3; // смена цвета каждые 5 минут, сам переход идёт 90 секунд
+const PRESETS = [['Море', 205], ['Фиолет', 270], ['Роза', 335], ['Закат', 20], ['Лес', 140], ['Бирюза', 175]];
 const th = (() => { try { return JSON.parse(localStorage.getItem('sx-theme')) || {}; } catch (e) { return {}; } })();
 if (!th.t0) th.t0 = Date.now();
-if (th.auto === undefined) th.auto = true;
+if (!th.sel) th.sel = th.auto === false ? 'p:' + Math.round(th.fix === undefined ? 205 : th.fix) : 'auto';
 const saveTheme = () => { try { localStorage.setItem('sx-theme', JSON.stringify(th)); } catch (e) {} };
+let themes = [], draft = null, editing = null;
 const hueAt = k => HUES[((k % 7) + 7) % 7] + 360 * Math.floor(k / 7);
 const hslHex = (h, s, l) => { s /= 100; l /= 100; const a = s * Math.min(l, 1 - l), f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))).toString(16).padStart(2, '0'); }; return '#' + f(0) + f(8) + f(4); };
+const hexHue = hx => { const n = parseInt(hx.slice(1), 16), r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), s = mx - mn; if (!s) return 205; const h = mx === r ? ((g - b) / s) % 6 : mx === g ? (b - r) / s + 2 : (r - g) / s + 4; return (h * 60 + 360) % 360; };
+function avgHue(src) { // главный цвет картинки (по насыщенным пикселям)
+  const c = document.createElement('canvas'); c.width = c.height = 24; const g = c.getContext('2d'); g.drawImage(src, 0, 0, 24, 24);
+  const d = g.getImageData(0, 0, 24, 24).data; let x = 0, y = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i] / 255, gg = d[i + 1] / 255, b = d[i + 2] / 255, mx = Math.max(r, gg, b), s = mx - Math.min(r, gg, b); if (s < .08) continue;
+    const h = (mx === r ? ((gg - b) / s) % 6 : mx === gg ? (b - r) / s + 2 : (r - gg) / s + 4) * 60 * Math.PI / 180, w = s * mx;
+    x += Math.cos(h) * w; y += Math.sin(h) * w;
+  }
+  return x || y ? (Math.atan2(y, x) * 180 / Math.PI + 360) % 360 : 205;
+}
+const themeUrl = t => t.blob ? (t._u = t._u || URL.createObjectURL(t.blob)) : '';
+const activeTheme = () => draft || (th.sel.startsWith('t:') ? themes.find(x => x.id === th.sel.slice(2)) || null : null);
+function applyBg(t) { // фон: градиент или картинка (масштаб, позиция, размытие, затемнение)
+  const im = $('.bgimg'), dim = $('.bgdim'), show = !!(t && t.mode === 'img' && t.blob);
+  $('.bg').style.background = t && t.mode === 'grad' ? `linear-gradient(${t.ang}deg,${t.c[0]},${t.c[1]},${t.c[2]})` : '';
+  im.hidden = dim.hidden = !show;
+  if (show) {
+    im.style.cssText = `background-image:url(${themeUrl(t)});background-position:${t.x}% ${t.y}%;transform:scale(${t.z / 100});transform-origin:${t.x}% ${t.y}%;filter:blur(${t.blur}px)`;
+    dim.style.background = `rgb(0 0 0 / ${t.dim / 100})`;
+  }
+}
 let lastHue = -1, lastHdr = 0, sentHue = -99;
 function themeTick() {
-  let h = th.fix === undefined ? 205 : th.fix;
-  if (th.auto) {
+  const at = activeTheme(); let h;
+  if (at) h = at.acc;
+  else if (th.sel.startsWith('p:')) h = +th.sel.slice(2);
+  else if (th.sel.startsWith('t:')) h = lastHue >= 0 ? lastHue : 205; // своя тема ещё загружается
+  else { // авто-радуга
     const e = Math.max(0, Date.now() - th.t0), k = Math.floor(e / STEP), t = Math.min(1, (e % STEP) / FADE), s = t * t * (3 - 2 * t);
     const cur = hueAt(k), prev = k ? hueAt(k - 1) : cur;
     h = prev + (cur - prev) * s;
   }
   h = ((h % 360) + 360) % 360;
   if (Math.abs(h - lastHue) > .05) { lastHue = h; document.documentElement.style.setProperty('--h', h.toFixed(1)); }
-  if (Date.now() - lastHdr > 20000 && Math.abs(h - sentHue) > 3) { // цвет шапки Telegram под цвет сайта (редко и только если клиент поддерживает)
+  if (Date.now() - lastHdr > 20000 && Math.abs(h - sentHue) > 3) { // цвет шапки Telegram под цвет сайта
     lastHdr = Date.now(); sentHue = h; const c = hslHex(h, 80, 4);
     if (tv('6.9')) try { tg.setHeaderColor(c); tg.setBackgroundColor(c); } catch (e) {}
     const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = c;
   }
 }
+const themeRefresh = () => { applyBg(activeTheme()); themeTick(); };
+function renderThemes() {
+  const chip = (v, label, bg) => `<button class="tchip${th.sel === v ? ' on' : ''}" data-act="thsel" data-v="${v}"><i style="background:${bg}"></i>${esc(label)}</button>`;
+  const rainbow = 'conic-gradient(from 90deg,hsl(0 90% 60%),hsl(60 90% 60%),hsl(120 90% 60%),hsl(180 90% 60%),hsl(240 90% 60%),hsl(300 90% 60%),hsl(360 90% 60%))';
+  $('#th-chips').innerHTML = chip('auto', 'Авто-радуга', rainbow) + PRESETS.map(([n, h]) => chip('p:' + h, n, `hsl(${h} 90% 55%)`)).join('')
+    + themes.map(t => chip('t:' + t.id, t.name, t.mode === 'img' ? `url(${themeUrl(t)}) center/cover` : `linear-gradient(135deg,${t.c.join(',')})`)).join('')
+    + '<button class="tchip" data-act="thnew"><i style="background:rgb(255 255 255 / .15)">+</i>Создать</button>';
+  $('#b-thedit').hidden = !th.sel.startsWith('t:') || !activeTheme();
+}
 function updateThemeUI() {
   document.documentElement.classList.toggle('lite', !!th.lite);
-  $('#b-auto').textContent = 'Автосмена цвета: ' + (th.auto ? 'вкл' : 'выкл');
   $('#b-lite').textContent = 'Лёгкий режим (без размытия и волн): ' + (th.lite ? 'вкл' : 'выкл');
+  renderThemes();
+}
+const baseTheme = () => ({ id: uid(), name: 'Моя тема', mode: 'grad', c: ['#06314f', '#0b79b8', '#041425'], ang: 160, z: 110, x: 50, y: 50, blur: 0, dim: 35, acc: 200 });
+function teFill() {
+  const d = draft, set = (id, v) => { $('#te-' + id).value = v; };
+  $('#te-title').textContent = editing === 'new' ? 'Новая тема' : 'Редактор темы';
+  set('name', d.name); $$('#te .seg button').forEach(b => b.classList.toggle('on', b.dataset.v === d.mode));
+  $('#te-grad').hidden = d.mode !== 'grad'; $('#te-img').hidden = d.mode !== 'img';
+  set('c1', d.c[0]); set('c2', d.c[1]); set('c3', d.c[2]); set('ang', d.ang);
+  set('z', d.z); set('x', d.x); set('y', d.y); set('blur', d.blur); set('dim', d.dim); set('acc', Math.round(d.acc));
+  $('#te-del').hidden = editing === 'new';
+  $('#te-imgname').textContent = d.blob ? 'Картинка выбрана — подгони её ползунками ниже' : 'Картинка не выбрана';
+}
+function openEditor(t) {
+  editing = t ? t.id : 'new'; draft = t ? { ...t, c: [...t.c] } : baseTheme();
+  $('#te').hidden = false; teFill(); themeRefresh();
+}
+function closeEditor() { editing = null; draft = null; $('#te').hidden = true; themeRefresh(); renderThemes(); }
+$('#te').addEventListener('input', e => {
+  const m = { 'te-name': v => draft.name = v, 'te-c1': v => draft.c[0] = v, 'te-c2': v => draft.c[1] = v, 'te-c3': v => draft.c[2] = v, 'te-ang': v => draft.ang = +v,
+    'te-z': v => draft.z = +v, 'te-x': v => draft.x = +v, 'te-y': v => draft.y = +v, 'te-blur': v => draft.blur = +v, 'te-dim': v => draft.dim = +v, 'te-acc': v => draft.acc = +v }[e.target.id];
+  if (m) { m(e.target.value); if (e.target.id !== 'te-name') themeRefresh(); }
+});
+$('#te-file').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f || !draft) return;
+  try {
+    const bmp = await createImageBitmap(f), sc = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)); // уменьшаем, чтобы не занимать много места
+    const cv = document.createElement('canvas'); cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    draft.blob = await new Promise(r => cv.toBlob(r, 'image/jpeg', .86)); draft._u = null;
+    draft.imgHue = avgHue(cv); draft.acc = draft.imgHue; draft.mode = 'img'; teFill(); themeRefresh();
+  } catch (err) { toast('Не удалось открыть картинку'); }
+});
+async function teSave() {
+  if (draft.mode === 'img' && !draft.blob) return toast('Сначала выбери картинку');
+  draft.name = (draft.name || '').trim() || 'Моя тема'; if (draft.mode === 'grad') delete draft.blob;
+  const { _u, ...rec } = draft;
+  try { await tx('themes', 'readwrite', s => s.put(rec)); } catch (e) { return toast(dbErr(e)); }
+  const i = themes.findIndex(x => x.id === draft.id); if (i < 0) themes.push(draft); else themes[i] = draft;
+  th.sel = 't:' + draft.id; saveTheme(); closeEditor(); toast('Тема сохранена');
+}
+async function teDelete() {
+  if (!await ask('Удалить эту тему?')) return;
+  const id = draft.id; try { await tx('themes', 'readwrite', s => s.delete(id)); } catch (e) { return toast(dbErr(e)); }
+  themes = themes.filter(x => x.id !== id); if (th.sel === 't:' + id) { th.sel = 'auto'; saveTheme(); }
+  closeEditor(); toast('Тема удалена');
 }
 setInterval(themeTick, 1000); themeTick();
 
@@ -851,8 +992,9 @@ async function persistInfo() {
     const cv = {}; (await tx('covers', 'readonly', s => s.getAll())).forEach(c => { cv[c.id] = c.blob; coverDone.add(c.id); });
     tracks.forEach(t => { t.cover = t.cover || cv[t.id] || null; });
     (await tx('stats', 'readonly', s => s.getAll())).forEach(r => { stats[r.id] = r; });
+    themes = await tx('themes', 'readonly', s => s.getAll());
   } catch (e) { toast('IndexedDB недоступна: библиотека не сохранится'); }
-  updateOpts(); applyVol(); updateThemeUI();
+  updateOpts(); applyVol(); updateThemeUI(); themeRefresh();
   render(true); persistInfo(); backfillCovers();
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().then(persistInfo);
 })();
