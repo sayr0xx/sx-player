@@ -344,9 +344,13 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
 .timer-grid button{padding:14px 4px;border:0;border-radius:16px;background:rgb(255 255 255 / .08);color:var(--tx);font:600 13px inherit;box-shadow:inset 0 0 0 1px rgb(255 255 255 / .12)}
 #lyrics-input{width:100%;min-height:160px;resize:vertical;padding:13px;border:0;border-radius:18px;background:rgb(0 0 0 / .22);color:var(--tx);font:14px/1.55 inherit;outline:none;box-shadow:inset 0 0 0 1px rgb(255 255 255 / .12)}
 #lyrics-input::placeholder{color:var(--mut)}
-#beat-glow{position:fixed;inset:0;z-index:17;pointer-events:none;opacity:0;box-shadow:inset 0 0 90px 22px hsl(var(--h) 100% 70% / .55)}
-#beat-glow.pulse{animation:glow .24s ease-out}
-@keyframes glow{0%{opacity:0}18%{opacity:1}100%{opacity:0}}
+#beat-glow{position:fixed;inset:0;z-index:17;pointer-events:none;opacity:0;transition:opacity 1.4s ease,filter 2s ease,box-shadow 2s ease}
+#beat-glow.ambient-on{opacity:.55;animation:ambientBreath 5s ease-in-out infinite alternate}
+#beat-glow[data-mode="glow"]{box-shadow:inset 0 0 100px 18px hsl(var(--h) 100% 68% / .42)}
+#beat-glow[data-mode="wave"]{box-shadow:inset 0 0 130px 26px hsl(calc(var(--h) + 65) 95% 65% / .35);filter:hue-rotate(24deg)}
+#beat-glow[data-mode="edge"]{box-shadow:inset 0 0 0 5px hsl(calc(var(--h) + 130) 100% 65% / .4),inset 0 0 90px 12px hsl(var(--h) 100% 65% / .2)}
+#beat-glow[data-mode="breathe"]{box-shadow:inset 0 0 150px 34px hsl(calc(var(--h) + 25) 100% 70% / .38)}
+@keyframes ambientBreath{from{opacity:.2}to{opacity:.62}}
 @media (min-width:900px){.tool-sheet{align-items:center}}
 @media (max-width:360px){.tool-btn{font-size:10px}}
 
@@ -406,7 +410,7 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
             <button class="tool-btn" data-act="tool" data-v="eq"><i data-i="eqi"></i><b>Эквалайзер</b></button>
             <button class="tool-btn" data-act="tool" data-v="timer"><i data-i="clock"></i><b>Таймер</b></button>
             <button class="tool-btn" data-act="tool" data-v="lyrics"><i data-i="text"></i><b>Текст</b></button>
-            <button class="tool-btn" id="flash-btn" data-act="flash"><i data-i="bolt"></i><b>Вспышка</b></button>
+            <button class="tool-btn" id="flash-btn" data-act="flash" aria-label="Мягкие экранные эффекты; без мигания фонарика"><i data-i="bolt"></i><b>Вспышка</b></button>
           </div>
         </div>
       </div>
@@ -541,9 +545,19 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
     <div id="tool-eq" class="tool-content" hidden>
       <p class="tool-hint">Настрой звучание. Пока эквалайзер выключен, звук идёт без обработки.</p>
       <button id="eq-toggle" class="ghost" data-act="eqtoggle"></button>
-      <label class="eq-row"><span>Басы</span><input id="eq-low" type="range" min="-12" max="12" value="0"><output id="eq-low-v">0 дБ</output></label>
-      <label class="eq-row"><span>Середина</span><input id="eq-mid" type="range" min="-12" max="12" value="0"><output id="eq-mid-v">0 дБ</output></label>
-      <label class="eq-row"><span>Высокие</span><input id="eq-high" type="range" min="-12" max="12" value="0"><output id="eq-high-v">0 дБ</output></label>
+      <p class="tool-state">Готовые пресеты</p>
+      <div id="eq-presets" class="timer-grid">
+        <button data-act="eqpreset" data-v="flat">Ровный</button>
+        <button data-act="eqpreset" data-v="bass">Бас</button>
+        <button data-act="eqpreset" data-v="vocal">Вокал</button>
+        <button data-act="eqpreset" data-v="pop">Поп</button>
+        <button data-act="eqpreset" data-v="rock">Рок</button>
+        <button data-act="eqpreset" data-v="electro">Электро</button>
+        <button data-act="eqpreset" data-v="night">Ночной</button>
+        <button data-act="eqpreset" data-v="burn">Сжечь сабвуфер</button>
+      </div>
+      <div id="eq-bands"></div>
+      <p class="tool-hint">Диапазон ограничен, чтобы не перегружать звук и динамики. Для громкости используй системный регулятор.</p>
       <button class="ghost" data-act="eqreset">Сбросить</button>
     </div>
     <div id="tool-timer" class="tool-content" hidden>
@@ -636,8 +650,8 @@ let tracks = [], tab = 'music', q = '', cur = null, queue = [], curUrl = '', she
 const audio = new Audio(), covers = {}, coverDone = new Set();
 let stats = {};
 let playlists = [], libView = 'all', libOpen = null; // плейлисты и текущий раздел «Моей музыки»
-const eq = { ctx: null, f: null, master: null, on: false, vals: [0, 0, 0] }; // эквалайзер (включается только по желанию)
-const flash = { on: false, stream: null, track: null, last: 0, busy: false, off: 0, err: '' }; // вспышка под биты
+const eq = { ctx: null, f: null, master: null, on: false, vals: [0, 0, 0, 0, 0, 0, 0, 0], preset: 'custom' }; // 8-полосный эквалайзер
+const flash = { on:false, mode:0, timer:0 }; // экранные визуальные эффекты
 let fade = 1; // плавное затухание таймера сна
 let shuf = false, rep = 'all', vol = 1, muted = false, hist = [], played = new Set();
 const coverUrl = t => t.cover ? (covers[t.id] = covers[t.id] || URL.createObjectURL(t.cover)) : '';
@@ -871,7 +885,7 @@ function setK(k) {
 }
 function beatFrame(t) {
   raf = 0;
-  if (!(cur && !audio.paused && !document.hidden && ((tab === 'music' && !th.lite) || flash.on))) return setK(0);
+  if (!(cur && !audio.paused && !document.hidden && (tab === 'music' && !th.lite))) return setK(0);
   raf = requestAnimationFrame(beatFrame);
   if (t - lastFrame < 33) return; lastFrame = t; // ~30 кадров/с
   let real = false;
@@ -881,14 +895,14 @@ function beatFrame(t) {
     quiet = e === 0 ? quiet + 1 : 0; real = quiet < 45;
     if (real) { // бит = резкий скачок баса относительно последних ~200 мс (а не просто «громко»), подстраивается под громкость трека
       peak = Math.max(e, peak * .995); const en = e / Math.max(.25, peak), low = Math.min(...bh); bh.push(en); bh.shift();
-      if (en > .55 && en - low > .28 && t - lastBeat > 220) { kick = Math.min(1, .55 + en * .45); lastBeat = t; if (flash.on) flashBeat(t); }
+      if (en > .55 && en - low > .28 && t - lastBeat > 220) { kick = Math.min(1, .55 + en * .45); lastBeat = t;  }
     }
   }
   if (!real && t - lastBeat > 520) { kick = .8; lastBeat = t; } // нет анализа (iPhone и др.) — ритмичная имитация
   kick *= .87; setK(kick);
 }
 function fxLoop() {
-  const on = cur && !audio.paused && !document.hidden && ((tab === 'music' && !th.lite) || flash.on);
+  const on = cur && !audio.paused && !document.hidden && (tab === 'music' && !th.lite);
   if (on && !raf) raf = requestAnimationFrame(beatFrame);
   if (!on) setK(0);
 }
@@ -1051,7 +1065,8 @@ document.addEventListener('click', async e => {
   else if (a === 'toolclose') closeTool();
   else if (a === 'flash') flashToggle();
   else if (a === 'eqtoggle') eqSwitch();
-  else if (a === 'eqreset') { eq.vals = [0, 0, 0]; eqSave(); eqApply(); eqFill(); }
+  else if (a === 'eqreset') { eq.vals = [0,0,0,0,0,0,0,0]; eq.preset = 'flat'; eqSave(); eqApply(); eqFill(); }
+  else if (a === 'eqpreset') eqPreset(el.dataset.v);
   else if (a === 'timerset') sleepSet(Number(el.dataset.v));
   else if (a === 'timercancel') sleepCancel();
   else if (a === 'lyricssave') saveLyrics();
@@ -1475,77 +1490,109 @@ function sleepCheck() { // вызывается и из timeupdate, и по та
 }
 setInterval(sleepCheck, 1000); audio.addEventListener('timeupdate', sleepCheck);
 
-/* ---------- Эквалайзер (включается только по желанию — иначе звук идёт напрямую) ---------- */
-try { const v = JSON.parse(localStorage.getItem('sx-eq-v1') || '{}'); if (Array.isArray(v.vals) && v.vals.length === 3) eq.vals = v.vals.map(x => Math.max(-12, Math.min(12, Number(x) || 0))); eq.on = !!v.on; } catch (e) {}
-const eqSave = () => { try { localStorage.setItem('sx-eq-v1', JSON.stringify({ on: eq.on, vals: eq.vals })); } catch (e) {} };
+/* ---------- 8-полосный эквалайзер с пресетами ---------- */
+const EQ_BANDS = [
+  { id:'sub', label:'Саб-бас', hz:60, type:'lowshelf' },
+  { id:'bass', label:'Бас', hz:120, type:'peaking', q:1 },
+  { id:'lowmid', label:'Нижняя середина', hz:250, type:'peaking', q:1 },
+  { id:'mid', label:'Середина', hz:500, type:'peaking', q:1 },
+  { id:'presence', label:'Детальность', hz:1000, type:'peaking', q:1 },
+  { id:'upper', label:'Верхняя середина', hz:2500, type:'peaking', q:1 },
+  { id:'treble', label:'Высокие', hz:6000, type:'peaking', q:0.9 },
+  { id:'air', label:'Воздух', hz:12000, type:'highshelf' }
+];
+const EQ_PRESETS = {
+  flat:    { name:'Ровный', vals:[0,0,0,0,0,0,0,0] },
+  bass:    { name:'Бас', vals:[4,4,2,0,-1,0,1,1] },
+  vocal:   { name:'Вокал', vals:[-2,-1,0,2,3,2,0,-1] },
+  pop:     { name:'Поп', vals:[2,2,1,0,1,2,2,1] },
+  rock:    { name:'Рок', vals:[3,2,1,-1,1,2,3,2] },
+  electro: { name:'Электро', vals:[4,3,1,0,-1,2,3,2] },
+  night:   { name:'Ночной', vals:[-2,-1,1,2,2,1,-1,-2] },
+  burn:    { name:'Сжечь сабвуфер', vals:[5,4,2,0,-1,0,1,0] }
+};
+try {
+  const v = JSON.parse(localStorage.getItem('sx-eq-v1') || '{}');
+  if (Array.isArray(v.vals)) {
+    if (v.vals.length === 8) eq.vals = v.vals.map(x => Math.max(-6, Math.min(6, Number(x) || 0)));
+    else if (v.vals.length === 3) eq.vals = [v.vals[0], v.vals[0], 0, v.vals[1], v.vals[1], 0, v.vals[2], v.vals[2]].map(x => Math.max(-6, Math.min(6, Number(x) || 0)));
+  }
+  eq.on = !!v.on; eq.preset = v.preset || 'custom';
+} catch (e) {}
+const eqSave = () => { try { localStorage.setItem('sx-eq-v1', JSON.stringify({ on:eq.on, vals:eq.vals, preset:eq.preset })); } catch (e) {} };
 function eqEnable() {
   if (eq.f) return true;
   try {
     const AC = window.AudioContext || window.webkitAudioContext; if (!AC) throw 0;
-    const c = new AC(), src = c.createMediaElementSource(audio), low = c.createBiquadFilter(), mid = c.createBiquadFilter(), high = c.createBiquadFilter(), master = c.createGain(), a = c.createAnalyser();
-    low.type = 'lowshelf'; low.frequency.value = 180; mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = .8; high.type = 'highshelf'; high.frequency.value = 5000;
-    src.connect(low); low.connect(mid); mid.connect(high); high.connect(master); master.connect(c.destination); master.connect(a);
-    eq.ctx = c; eq.f = [low, mid, high]; eq.master = master;
+    const c = new AC(), src = c.createMediaElementSource(audio), filters = EQ_BANDS.map(b => {
+      const f = c.createBiquadFilter(); f.type = b.type; f.frequency.value = b.hz;
+      if (b.q) f.Q.value = b.q; return f;
+    }), master = c.createGain(), a = c.createAnalyser();
+    filters.forEach((f,i) => { if (i) filters[i-1].connect(f); });
+    src.connect(filters[0]); filters[filters.length-1].connect(master); master.connect(c.destination); master.connect(a);
+    eq.ctx = c; eq.f = filters; eq.master = master;
     if (asrc) { try { asrc.disconnect(); } catch (e) {} asrc = null; }
     if (ac && ac !== c) { try { ac.close(); } catch (e) {} }
-    ac = c; an = a; a.fftSize = 512; a.smoothingTimeConstant = .5; fbuf = new Uint8Array(a.frequencyBinCount); // анализ битов теперь берёт звук отсюда
+    ac = c; an = a; a.fftSize = 512; a.smoothingTimeConstant = .5; fbuf = new Uint8Array(a.frequencyBinCount);
     c.onstatechange = () => { if (c.state !== 'running' && !audio.paused) c.resume().catch(() => {}); };
     c.resume().catch(() => {}); applyVol(); return true;
   } catch (e) { eq.f = null; eq.master = null; toast('Эквалайзер не поддерживается этим браузером'); return false; }
 }
-function eqApply() { if (!eq.f) return; eq.f.forEach((f, i) => f.gain.setTargetAtTime(eq.on ? eq.vals[i] : 0, eq.ctx.currentTime, .03)); }
+function eqApply() {
+  if (!eq.f) return;
+  eq.f.forEach((f,i) => f.gain.setTargetAtTime(eq.on ? eq.vals[i] : 0, eq.ctx.currentTime, .04));
+}
+function eqBuild() {
+  const host = $('#eq-bands'); if (host.dataset.ready) return;
+  host.innerHTML = EQ_BANDS.map((b,i) => `<label class="eq-row"><span>${b.label}</span><input id="eq-band-${i}" type="range" min="-6" max="6" step="1" value="0"><output id="eq-band-${i}-v">0 дБ</output></label>`).join('');
+  EQ_BANDS.forEach((b,i) => $('#eq-band-'+i).addEventListener('input', e => {
+    eq.vals[i] = Number(e.target.value); eq.preset = 'custom'; eqSave(); eqApply(); eqFill();
+  }));
+  host.dataset.ready = '1';
+}
 function eqFill() {
-  ['low', 'mid', 'high'].forEach((k, i) => { $('#eq-' + k).value = eq.vals[i]; $('#eq-' + k).disabled = !eq.on; $('#eq-' + k + '-v').textContent = `${eq.vals[i] > 0 ? '+' : ''}${eq.vals[i]} дБ`; });
+  eqBuild();
+  EQ_BANDS.forEach((b,i) => {
+    const input = $('#eq-band-'+i); input.value = eq.vals[i]; input.disabled = !eq.on;
+    $('#eq-band-'+i+'-v').textContent = `${eq.vals[i] > 0 ? '+' : ''}${eq.vals[i]} дБ`;
+  });
   $('#eq-toggle').textContent = 'Эквалайзер: ' + (eq.on ? 'вкл' : 'выкл');
+  $$('#eq-presets button').forEach(b => b.classList.toggle('on', b.dataset.v === eq.preset));
+}
+function eqPreset(name) {
+  const p = EQ_PRESETS[name]; if (!p) return;
+  eq.vals = [...p.vals]; eq.preset = name;
+  if (!eq.on) { if (!eqEnable()) return; eq.on = true; }
+  eqSave(); eqApply(); eqFill(); toast('Пресет: ' + p.name);
 }
 function eqSwitch() { if (!eq.on && !eqEnable()) return; eq.on = !eq.on; eqSave(); eqApply(); eqFill(); }
-['low', 'mid', 'high'].forEach((k, i) => $('#eq-' + k).addEventListener('input', e => { eq.vals[i] = Number(e.target.value); eqSave(); eqApply(); eqFill(); }));
-setInterval(() => { if (eq.ctx && !audio.paused && eq.ctx.state !== 'running') eq.ctx.resume().catch(() => {}); }, 1500); // страховка: музыка не должна «замирать»
+setInterval(() => { if (eq.ctx && !audio.paused && eq.ctx.state !== 'running') eq.ctx.resume().catch(() => {}); }, 1500);
 
-/* ---------- Вспышка под биты: фонарик телефона (где браузер даёт к нему доступ), иначе — мягкое свечение экрана ---------- */
-async function torchSet(v) { if (!flash.track) return false; try { await flash.track.applyConstraints({ advanced: [{ torch: !!v }] }); return true; } catch (e) { return false; } }
-function torchRelease() {
-  clearTimeout(flash.off); try { if (flash.track) flash.track.applyConstraints({ advanced: [{ torch: false }] }).catch(() => {}); } catch (e) {}
-  if (flash.stream) flash.stream.getTracks().forEach(t => t.stop()); flash.stream = flash.track = null; flash.busy = false;
-}
-async function torchAcquire() {
-  if (flash.track) return true; flash.err = '';
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
-  try {
-    const st = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' } } }), tr = st.getVideoTracks()[0];
-    const caps = tr && tr.getCapabilities ? tr.getCapabilities() : {};
-    if (!caps.torch) { st.getTracks().forEach(t => t.stop()); return false; }
-    flash.stream = st; flash.track = tr;
-    if (!(await torchSet(true))) { torchRelease(); return false; } // проверяем, что фонарик правда включается, и сразу гасим
-    await torchSet(false); return true;
-  } catch (e) { flash.err = e && e.name; torchRelease(); return false; }
-}
+/* ---------- Мягкие визуальные эффекты: без вспышки фонарика и стробоскопа ---------- */
+const flashModes = ['glow','wave','edge','breathe'];
 function updateFlashBtn() {
   const b = $('#flash-btn'); b.classList.toggle('on', flash.on);
-  b.querySelector('b').textContent = !flash.on ? 'Вспышка' : flash.track ? 'Фонарик ✓' : 'Экран ✓';
+  b.querySelector('b').textContent = flash.on ? 'Эффекты ✓' : 'Эффекты';
 }
-function flashBeat(t) {
-  if (t - flash.last < 350) return; flash.last = t; // не чаще ~3 вспышек в секунду (безопаснее для глаз)
-  if (flash.track) {
-    if (flash.busy) return; flash.busy = true;
-    torchSet(true).then(ok => { if (!ok) { flash.busy = false; return; } flash.off = setTimeout(() => torchSet(false).then(() => { flash.busy = false; }), 90); });
-  } else { const g = $('#beat-glow'); g.classList.remove('pulse'); void g.offsetWidth; g.classList.add('pulse'); }
+function flashStop() {
+  flash.on = false; clearInterval(flash.timer); flash.timer = 0;
+  const g = $('#beat-glow'); g.className = ''; g.removeAttribute('data-mode');
+  updateFlashBtn();
 }
-async function flashToggle() {
-  if (flash.on) { flash.on = false; torchRelease(); updateFlashBtn(); toast('Вспышка выключена'); return; }
-  let okSeen = false; try { okSeen = localStorage.getItem('sx-flash-ok') === '1'; } catch (e) {}
-  if (!okSeen) {
-    if (!await ask('Вспышка мигает в такт музыке. Не включай её, если у тебя светочувствительная эпилепсия или частые мигания вызывают дискомфорт. Включить?')) return;
-    try { localStorage.setItem('sx-flash-ok', '1'); } catch (e) {}
-  }
-  flash.on = true; updateFlashBtn();
-  const ok = await torchAcquire(); updateFlashBtn();
-  toast(ok ? 'Фонарик мигает в такт басу' : flash.err === 'NotAllowedError' ? 'Нет доступа к камере — разреши его для фонарика. Пока вспышка идёт по экрану' : 'Фонарик здесь недоступен — вспышка идёт по экрану');
-  fxLoop();
+function flashToggle() {
+  if (flash.on) { flashStop(); toast('Визуальные эффекты выключены'); return; }
+  flash.on = true; flash.mode = 0;
+  const g = $('#beat-glow'); g.dataset.mode = flashModes[flash.mode]; g.classList.add('ambient-on');
+  // Медленно меняем оформление, не мигаем фонариком и не синхронизируем строб с битом.
+  flash.timer = setInterval(() => {
+    if (!flash.on || document.hidden) return;
+    flash.mode = (flash.mode + 1) % flashModes.length;
+    g.dataset.mode = flashModes[flash.mode];
+  }, 5000);
+  updateFlashBtn(); toast('Включены мягкие экранные эффекты');
 }
-audio.addEventListener('pause', () => { clearTimeout(flash.off); flash.busy = false; if (flash.track) torchSet(false); });
-document.addEventListener('visibilitychange', () => { if (document.hidden) torchRelease(); else if (flash.on) torchAcquire().then(updateFlashBtn); });
-addEventListener('pagehide', torchRelease);
+document.addEventListener('visibilitychange', () => { if (document.hidden) { const g=$('#beat-glow'); g.classList.remove('ambient-on'); } else if (flash.on) $('#beat-glow').classList.add('ambient-on'); });
+addEventListener('pagehide', () => { clearInterval(flash.timer); });
 
 /* ---------- Папки: плейлисты и исполнители, переименование ---------- */
 const plById = id => playlists.find(p => p.id === id);
