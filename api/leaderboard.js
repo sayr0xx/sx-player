@@ -33,11 +33,12 @@ module.exports = async (req, res) => {
   const user = typeof initData === 'string' && tokens.map(t => checkInitData(initData, t)).find(Boolean);
   if (!user || !user.id) return res.status(401).json({ error: 'bad initData' });
   const id = String(user.id);
+  const pidOf = x => crypto.createHash('sha256').update('sx-pid:' + tokens[0] + ':' + x).digest('hex').slice(0, 16); // публичный код вместо Telegram ID
   const name = (user.username ? '@' + user.username : user.first_name || 'user').slice(0, 24);
   try {
-    if (remove) await redis([['ZREM', 'sx:lb', id], ['HDEL', 'sx:names', id], ['HDEL', 'sx:tracks', id]]);
+    if (remove) await redis([['ZREM', 'sx:lb', id], ['HDEL', 'sx:names', id], ['HDEL', 'sx:tracks', id], ['HDEL', 'sx:pids', pidOf(id)]]);
     else if (Number.isFinite(sec) && sec >= 0 && sec <= 3.2e8) {
-      const cmds = [['ZADD', 'sx:lb', 'GT', String(Math.floor(sec)), id], ['HSET', 'sx:names', id, name]];
+      const cmds = [['ZADD', 'sx:lb', 'GT', String(Math.floor(sec)), id], ['HSET', 'sx:names', id, name], ['HSET', 'sx:pids', pidOf(id), id]];
       const fav = typeof track === 'string' ? track.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 60) : '';
       if (fav) cmds.push(['HSET', 'sx:tracks', id, fav]); // самый часто слушаемый трек (только название)
       await redis(cmds);
@@ -45,7 +46,7 @@ module.exports = async (req, res) => {
     const [flat, rank, mine] = await redis([['ZREVRANGE', 'sx:lb', 0, 9, 'WITHSCORES'], ['ZREVRANK', 'sx:lb', id], ['ZSCORE', 'sx:lb', id]]);
     const ids = flat.filter((_, i) => i % 2 === 0);
     const [names, favs] = ids.length ? await redis([['HMGET', 'sx:names', ...ids], ['HMGET', 'sx:tracks', ...ids]]) : [[], []];
-    const top = ids.map((uid, i) => ({ name: names[i] || 'user', track: favs[i] || '', sec: Number(flat[i * 2 + 1]), me: uid === id }));
+    const top = ids.map((uid, i) => ({ pid: pidOf(uid), name: names[i] || 'user', track: favs[i] || '', sec: Number(flat[i * 2 + 1]), me: uid === id }));
     res.status(200).json({ top, me: rank === null ? null : { rank: rank + 1, sec: Number(mine) } });
   } catch (e) {
     res.status(502).json({ error: 'storage' });
