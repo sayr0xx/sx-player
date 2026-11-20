@@ -408,6 +408,33 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
 .sp-bar{width:140px;height:4px;border-radius:2px;background:rgb(255 255 255 / .12);overflow:hidden}
 .sp-bar u{display:block;width:40%;height:100%;border-radius:2px;background:linear-gradient(90deg,transparent,var(--a2),transparent);animation:spSlide 1.2s ease-in-out infinite}
 @keyframes spSlide{from{transform:translateX(-100%)}to{transform:translateX(350%)}}
+
+/* Топ слушателей: карточки с аватаркой, как в профиле Telegram */
+.lbtop{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.lbc{position:relative;overflow:hidden;isolation:isolate;display:flex;flex-direction:column;justify-content:flex-end;min-height:196px;padding:14px;border-radius:30px;color:#fff;box-shadow:var(--rim),0 10px 28px rgb(0 0 0 / .4)}
+.lbc.first{grid-column:1/-1;min-height:280px}
+.lbc .fb,.lbr .fb{position:absolute;inset:0;z-index:-3;display:grid;place-items:center;font-weight:800;color:rgb(255 255 255 / .85);background:linear-gradient(135deg,hsl(calc(var(--h) + var(--o,0)) 80% 50%),hsl(calc(var(--h) + var(--o,0) + 50) 70% 22%))}
+.lbc .fb{font-size:78px}
+.lbc .av,.lbr .av{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}
+.lbc::after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(180deg,transparent 38%,rgb(0 0 0 / .78))}
+.lbc .rk{position:absolute;top:12px;left:12px;display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;background:rgb(0 0 0 / .38);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-weight:800;font-size:13px;box-shadow:inset 0 0 0 1.5px var(--rc)}
+.lbc .rk svg{width:15px;height:15px;fill:var(--rc)}
+.lbc.p1{--rc:#ffd35a;box-shadow:var(--rim),0 0 0 2px #ffd35a,0 12px 34px rgb(255 190 40 / .35)}
+.lbc.p2{--rc:#d7dde8;box-shadow:var(--rim),0 0 0 2px #d7dde8,0 10px 26px rgb(200 210 230 / .22)}
+.lbc.p3{--rc:#e0985e;box-shadow:var(--rim),0 0 0 2px #e0985e,0 10px 26px rgb(224 150 90 / .25)}
+.lbc.me{outline:2px solid var(--a);outline-offset:3px}
+.lbc .nm{display:block;font-size:20px;font-weight:800;line-height:1.15;text-shadow:0 2px 14px rgb(0 0 0 / .7);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbc.first .nm{font-size:26px}
+.lbc .tm{display:block;margin-top:2px;font-size:13px;opacity:.88}
+.lbc .ct{display:inline-flex;align-items:center;gap:6px;margin-top:9px;padding:6px 12px;border-radius:999px;max-width:100%;background:rgb(255 255 255 / .18);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:12px}
+.lbc .ct svg{width:14px;height:14px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.lbc .ct span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbr{display:flex;align-items:center;gap:12px;padding:10px 14px 10px 12px;margin-bottom:8px;border-radius:24px}
+.lbr .rn{width:22px;text-align:center;font-weight:800;color:var(--tint)}
+.lbr .ava{position:relative;width:48px;height:48px;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 1.5px rgb(255 255 255 / .3)}
+.lbr .fb{font-size:20px}
+.lbr .meta span.ft{display:block;color:var(--tint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbr.me{box-shadow:var(--rim),inset 0 0 0 1.5px var(--a)}
 </style>
 </head>
 <body>
@@ -486,7 +513,7 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
     <h2>Топ слушателей</h2>
     <div id="lb"></div><p id="lb-me" class="lbme"></p>
     <button id="lb-toggle" class="ghost" data-act="lbtoggle"></button>
-    <p class="note">Участие добровольное. В топ уходят твой Telegram ID, имя, общее время прослушивания и название самого часто слушаемого трека (только название, без файлов). Топ работает через сервер (см. инструкцию), время считает твоё устройство.</p>
+    <p class="note">Участие добровольное. В топе видны: имя, публичная аватарка, общее время и название самого часто слушаемого трека. Номер телефона, описание профиля и Telegram ID другим не показываются. Топ работает через сервер (см. инструкцию), время считает твоё устройство.</p>
   </section>
 
   <section id="v-set" class="view">
@@ -1222,17 +1249,29 @@ async function lbCheck() { // подсказка, что именно не на�
       : r.ok ? '✅ Всё работает' : 'Ошибка сервера: ' + r.status;
   } catch (e) { out.textContent = '❌ Нет связи с сервером (приложение открыто не с сайта на Vercel?)'; }
 }
+const NOTE = '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></svg>';
+const CROWN = '<svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>';
+function lbAvatar(u) { // аватарка по публичному коду; если фото нет — буква на цветном фоне
+  const ini = esc([...(u.name || '?').replace('@', '')][0] || '?').toUpperCase(), o = hue({ title: u.name || '' });
+  return `<div class="fb" style="--o:${o}">${ini}</div>` + (u.pid ? `<img class="av" alt="" loading="lazy" src="/api/avatar?p=${u.pid}">` : '');
+}
 function renderLb() {
   const on = lbOn(); let h;
   if (!(tg && tg.initData)) h = '<p class="empty">Топ слушателей работает только внутри Telegram.</p>';
   else if (lbErr) h = `<p class="empty">Топ недоступен: ${esc(lbErr)}.</p>`;
   else if (!lbData) h = '<p class="empty">Загрузка…</p>';
-  else h = lbData.top.length ? lbData.top.map((u, i) => `<div class="glass srow${u.me ? ' me' : ''}"><b>${i + 1}</b><div class="meta"><b>${esc(u.name)}</b><span>${dur(u.sec)}</span>${u.track ? `<span class="ft">♪ ${esc(u.track)}</span>` : ''}</div></div>`).join('') : '<p class="empty">В топе пока никого. Нажми «Участвовать» — и будешь первым.</p>';
+  else if (!lbData.top.length) h = '<p class="empty">В топе пока никого. Нажми «Участвовать» — и будешь первым.</p>';
+  else {
+    const card = (u, i) => `<div class="lbc p${i + 1}${i === 0 ? ' first' : ''}${u.me ? ' me' : ''}">${lbAvatar(u)}<div class="rk">${i === 0 ? CROWN : ''}${i + 1}</div><b class="nm">${esc(u.name)}</b><span class="tm">${dur(u.sec)}</span>${u.track ? `<div class="ct">${NOTE}<span>${esc(u.track)}</span></div>` : ''}</div>`;
+    const top = lbData.top;
+    h = `<div class="lbtop">${top.slice(0, 3).map(card).join('')}</div>` + top.slice(3).map((u, i) => `<div class="glass lbr${u.me ? ' me' : ''}"><span class="rn">${i + 4}</span><div class="ava">${lbAvatar(u)}</div><div class="meta"><b>${esc(u.name)}</b><span>${dur(u.sec)}</span>${u.track ? `<span class="ft">♪ ${esc(u.track)}</span>` : ''}</div></div>`).join('');
+  }
   $('#lb').innerHTML = h;
   $('#lb-me').textContent = on && lbData && lbData.me ? `Твоё место: ${lbData.me.rank} · ${dur(lbData.me.sec)}` : '';
   $('#lb-toggle').textContent = on ? 'Выйти из топа' : 'Участвовать в топе';
   $('#lb-toggle').hidden = !(tg && tg.initData);
 }
+document.addEventListener('error', e => { if (e.target && e.target.tagName === 'IMG' && e.target.classList.contains('av')) e.target.remove(); }, true); // нет фото — остаётся буква
 
 /* ---------- Темы: готовые, свой градиент, своя картинка + редактор ---------- */
 const HUES = [205, 270, 350, 380, 408, 495, 535]; // авто-радуга: морской → фиолетовый → красный → оранжевый → жёлтый → зелёный → бирюзовый → снова морской
