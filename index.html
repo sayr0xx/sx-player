@@ -37,6 +37,10 @@ linear-gradient(180deg,hsl(var(--h) 75% 7%),hsl(var(--h) 80% 3.5%))}
 .wave.w2{height:80px}
 .wave.w2 path{fill:hsl(calc(var(--h) + 25) 90% 62% / .12)}
 @keyframes wave{to{transform:translateX(-50%)}}
+/* Аура: живой фон на видеокарте (шейдер), как в Яндекс Музыке */
+.aura{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s ease}
+.aura.on{opacity:1}
+.aura-on .wave{display:none}
 
 main{padding:calc(var(--st) + 14px) 18px calc(var(--sb) + 110px)}
 body.has-p main{padding-bottom:calc(var(--sb) + 215px)}
@@ -435,11 +439,95 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
 .lbr .fb{font-size:20px}
 .lbr .meta span.ft{display:block;color:var(--tint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lbr.me{box-shadow:var(--rim),inset 0 0 0 1.5px var(--a)}
+
+/* ===== РЕДИЗАЙН: стиль современных плееров (Spotify / Яндекс Музыка). Только оформление, вся логика не тронута ===== */
+:root{--bg:#0b0b0d;--glass:rgb(255 255 255 / .06);--rim:0 0 0 0 transparent;--drop:0 0 0 0 transparent;--surf:#1c1c21;--mut:hsl(var(--h) 8% 66%)}
+html{background:#0b0b0d}
+.bg{background:#0b0b0d}
+.bg::after{content:none}
+.aura-on .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgb(11 11 13 / .05) 0,rgb(11 11 13 / .55) 34%,#0b0b0d 72%);pointer-events:none}
+.glass::before,.row::before,.player::before,.player::after,.nav::before,.nav::after,.chip::before,.island::before{content:none!important}
+.nav,#sheet-b,.toast,.island,.player,.te-b,.tool-panel,.lens,.glass,.chip,.search,.add,.qa{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+#sheet-b,.tool-panel,.te-b,.toast{background:var(--surf)!important}
+.toast{background:#fff!important;color:#000}
+h1{text-shadow:none}
+h1.sm{font-size:30px;font-weight:800;letter-spacing:-.02em}
+h2{font-size:20px;font-weight:800;letter-spacing:-.01em;text-transform:none;color:#fff;margin:26px 0 12px}
+.logo{color:#fff}
+.card,.stat,.srow,.lbr,.pcard,.botcard,.idle{border-radius:16px}
+.card h3{font-size:16px}
+
+/* Строки и плитки */
+.row{background:none;box-shadow:none;border-radius:10px;padding:7px 4px;margin-bottom:2px}
+.row:active{background:rgb(255 255 255 / .08);transform:none}
+.row.cur{background:none;box-shadow:none}
+.row.cur .meta b,.tile.cur b{color:var(--a)}
+.cover{border-radius:8px;box-shadow:none}
+.meta b{font-size:16px;font-weight:600}
+.meta span{font-size:13px}
+.tile{flex-basis:142px;width:142px;max-width:142px}
+.tile .cover{width:142px;height:142px;border-radius:10px}
+.tile.cur .cover{box-shadow:0 0 0 2px var(--a)}
+.fav.on{color:var(--a)}
+
+/* Фильтры, поиск, кнопки */
+.chip{background:rgb(255 255 255 / .1);border-radius:999px;padding:9px 16px}
+.chip b{font-size:17px;color:#fff}
+.search{background:rgb(255 255 255 / .1);border-radius:10px;height:46px}
+.add{border-radius:999px;padding:14px;background:var(--a);color:var(--ink);box-shadow:none}
+.qa{background:rgb(255 255 255 / .07);border-radius:10px;flex-direction:row;justify-content:center;gap:8px;padding:13px 6px;font-size:12px}
+.qa svg{width:20px;height:20px;stroke:var(--a)}
+.lib-seg{gap:8px}
+.lib-seg button{flex:none;padding:8px 16px;border-radius:999px;background:rgb(255 255 255 / .1);box-shadow:none;font-weight:600}
+.lib-seg button.on{background:var(--a);color:var(--ink);box-shadow:none}
+.ghost{border-radius:999px;background:rgb(255 255 255 / .08);border:0;color:#fff}
+.tchip,.pset,.modes button,.timer-grid button,.tool-btn{box-shadow:none;border-radius:999px}
+.tool-btn{border-radius:14px}
+
+/* Плеер: крупная обложка, заголовок слева, белая кнопка Play */
+.player{background:none!important;box-shadow:none;border-radius:0;padding:4px 0 6px;margin:8px 0 0}
+.np-bg,.halo,.player .mini-eq{display:none}
+.art{width:min(80vw,340px);margin:8px auto 22px}
+.art .cover{border-radius:14px;box-shadow:0 18px 44px rgb(0 0 0 / .55)}
+.np-t b{font-size:24px;letter-spacing:-.02em}
+.np-t span{font-size:14px}
+.sk{height:20px}
+.sk::-webkit-slider-runnable-track{height:4px;background:linear-gradient(90deg,#fff var(--p,0%),rgb(255 255 255 / .25) var(--p,0%))}
+.sk::-webkit-slider-thumb{width:12px;height:12px;margin-top:-4px;box-shadow:none}
+.sk::-moz-range-progress{background:#fff}
+.big{background:#fff;color:#000;box-shadow:none}
+.np-ctl .big{width:66px;height:66px}
+.opt.on{background:none;color:var(--a)}
+.player-tools{border-top:0;padding-top:6px}
+.tool-btn{background:rgb(255 255 255 / .07);color:#fff}
+.tool-btn.on{background:rgb(255 255 255 / .16);box-shadow:inset 0 0 0 1.5px var(--a)}
+.idle{background:rgb(255 255 255 / .05);box-shadow:none}
+
+/* Телефон и планшет: нижнее меню и мини-плеер, как в Spotify */
+@media (max-width:899px){
+.nav{left:0;right:0;bottom:0;width:auto;transform:none;height:calc(62px + var(--sb));padding:6px 4px var(--sb);border-radius:0;background:rgb(11 11 13 / .97);box-shadow:0 -1px 0 rgb(255 255 255 / .07)}
+.pill{display:none}
+.nav button{border-radius:0;font-size:10px}
+.nav button:not(.on) span{display:block}
+.nav button.on{color:#fff}
+.nav button:not(.on){color:var(--mut)}
+main{padding-bottom:calc(var(--sb) + 150px)}
+body.has-i main{padding-top:calc(var(--st) + 14px)}
+.island,.island.peek,.island.open{left:8px;right:8px;top:auto;bottom:calc(var(--sb) + 68px);transform:none;width:auto;border-radius:12px;background:hsl(var(--h) 30% 19%);box-shadow:0 6px 20px rgb(0 0 0 / .45);text-shadow:none}
+.island:not([hidden]){animation:islIn2 .3s ease}
+.island .isl-t span{display:block}
+.isl-cover{width:40px;height:40px;border-radius:6px;box-shadow:none}
+.isl-row{padding:6px 12px 6px 6px;min-height:52px}
+.island::after{left:10px;right:10px}
+body:has(#player:not([hidden])) .island{display:none}
+}
+@keyframes islIn2{from{opacity:0;transform:translateY(10px)}}
+@media (min-width:900px){.nav{background:rgb(255 255 255 / .04);box-shadow:none}.island{background:hsl(var(--h) 30% 19%)}}
 </style>
 </head>
 <body>
 <div id="splash" class="splash"><div class="sp-logo"><div class="sp-glass"></div><div class="sp-bars"><i></i><i></i><i></i><i></i><i></i></div></div><div class="sp-name">sayr0xx player</div><div class="sp-bar"><u></u></div></div>
-<div class="bg"><div class="bgimg" hidden></div><div class="bgdim" hidden></div><svg class="wave" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg><svg class="wave w2" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg></div>
+<div class="bg"><canvas id="aura" class="aura"></canvas><div class="bgimg" hidden></div><div class="bgdim" hidden></div><svg class="wave" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg><svg class="wave w2" viewBox="0 0 2400 120" preserveAspectRatio="none"><path d="M0 60C150 20 450 100 600 60S1050 20 1200 60C1350 20 1650 100 1800 60S2250 20 2400 60V120H0Z"/></svg></div>
 <main>
   <section id="v-music" class="view active">
     <div class="colL">
@@ -939,6 +1027,7 @@ function fxAttach() {
 audio.addEventListener('playing', fxAttach);
 function setK(k) {
   if (k < .01) k = 0;
+  if (typeof AURA === 'object') AURA.k = k; // пульс фона по басу
   if (k !== lastK) { lastK = k; $('#b-disc').style.transform = k ? `scale(${(1 + k * .07).toFixed(3)})` : ''; }
 }
 const mkDet = floor => ({ floor, peak: floor, h: [0, 0, 0, 0, 0, 0] }), det = { low: mkDet(.2), mid: mkDet(.08), high: mkDet(.03), all: mkDet(.01) }; // у тихих полос (высокие, середина) свой порог шума
@@ -1299,6 +1388,7 @@ const themeUrl = t => t.blob ? (t._u = t._u || URL.createObjectURL(t.blob)) : ''
 const activeTheme = () => draft || (th.sel.startsWith('t:') ? themes.find(x => x.id === th.sel.slice(2)) || null : null);
 function applyBg(t) { // фон: градиент или картинка (масштаб, позиция, размытие, затемнение)
   const im = $('.bgimg'), dim = $('.bgdim'), show = !!(t && t.mode === 'img' && t.blob);
+  auraSet(!(t && (t.mode === 'grad' || t.mode === 'img'))); // у своих тем (градиент/картинка) аура выключена
   $('.bg').style.background = t && t.mode === 'grad' ? `linear-gradient(${t.ang}deg,${t.c[0]},${t.c[1]},${t.c[2]})` : '';
   im.hidden = dim.hidden = !show;
   if (show) {
@@ -1336,7 +1426,7 @@ function renderThemes() {
   $('#b-thedit').hidden = !th.sel.startsWith('t:') || !activeTheme();
 }
 function updateThemeUI() {
-  document.documentElement.classList.toggle('lite', !!th.lite); document.documentElement.classList.toggle('calm', !!th.calm);
+  document.documentElement.classList.toggle('lite', !!th.lite); document.documentElement.classList.toggle('calm', !!th.calm); if (typeof AURA === 'object' && AURA.go) AURA.go();
   $('#b-calm').textContent = 'Спокойный режим (без анимаций): ' + (th.calm ? 'вкл' : 'выкл');
   $('#b-drop').textContent = 'Жидкое стекло везде: ' + (th.drop ? 'вкл' : 'выкл');
   $('#drop-note').textContent = lgOK ? 'Выделение вкладки становится стеклянной каплей, а у всех стеклянных панелей мягко преломляется кромка. Текст остаётся чистым.' : 'Этот браузер не умеет искажать фон (например, Safari на iPhone): будет обычное стекло без искажения.';
@@ -1762,6 +1852,85 @@ function hideSplash() { // показываем анимацию минимум 
   setTimeout(() => { s.classList.add('out'); setTimeout(() => s.remove(), 700); }, Math.max(0, 1100 - (performance.now() - t0)));
 }
 setTimeout(hideSplash, 4500); // страховка: загрузочный экран не должен зависнуть при любой ошибке
+
+/* ---------- Фон «Аура»: шейдер на видеокарте ---------- */
+var AURA = { k: 0, kk: 0, h: -1, t: 0, last: 0, raf: 0, show: false, ok: false, dead: false, go: null };
+function auraSet(v) {
+  AURA.show = !!v && AURA.ok && !AURA.dead;
+  const c = document.getElementById('aura'); if (c) c.classList.toggle('on', AURA.show);
+  document.documentElement.classList.toggle('aura-on', AURA.show);
+  if (AURA.go) AURA.go();
+}
+(function () {
+  const cv = document.getElementById('aura'); if (!cv) return;
+  let gl = null; try { gl = cv.getContext('webgl', { alpha: false, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' }); } catch (e) {}
+  if (!gl) return; // нет WebGL — остаётся прежний фон с волнами
+  const FS = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+uniform vec2 r; uniform float t, h, k;
+float hs(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float no(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3. - 2. * f);
+  return mix(mix(hs(i), hs(i + vec2(1., 0.)), f.x), mix(hs(i + vec2(0., 1.)), hs(i + vec2(1., 1.)), f.x), f.y); }
+float fb(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++){ s += a * no(p); p = p * 2.03 + vec2(1.7, 9.2); a *= .5; } return s; }
+vec3 hsl(float hh, float s, float l){
+  vec3 q = clamp(abs(mod(hh / 60. + vec3(0., 4., 2.), 6.) - 3.) - 1., 0., 1.);
+  return l + s * (q - .5) * (1. - abs(2. * l - 1.)); }
+void main(){
+  vec2 uv = gl_FragCoord.xy / r;
+  vec2 p = (gl_FragCoord.xy - .5 * r) / r.y;
+  float T = t * .07;
+  vec2 q = vec2(fb(p * 1.3 + vec2(0., T)), fb(p * 1.3 + vec2(5.2, 1.3) - T));
+  vec2 w = vec2(fb(p * 1.5 + 2. * q + vec2(1.7, 9.2) + T * 1.2), fb(p * 1.5 + 2. * q + vec2(8.3, 2.8) - T * .9));
+  float f = fb(p * 1.1 + 2.4 * w);
+  float m = uv.y + (f - .5) * .9 + (w.x - .5) * .25 + k * .06;
+  float glow = smoothstep(.12, 1.05, m);
+  vec3 deep = hsl(h, .9, .035), mid = hsl(h - 6., .95, .34), hot = hsl(h + 10., 1., .56), core = hsl(h + 24., 1., .8);
+  vec3 c = mix(deep, mid, smoothstep(0., .65, glow));
+  c = mix(c, hot, smoothstep(.45, .95, glow) * (.55 + .45 * f));
+  float vein = pow(1. - abs(2. * w.y - 1.), 5.) * smoothstep(.35, .9, glow);
+  c += core * vein * .35;
+  c *= 1. + k * .18;
+  c *= mix(.55, 1., smoothstep(0., .5, uv.y));
+  c += (hs(gl_FragCoord.xy) - .5) / 255.;
+  gl_FragColor = vec4(c, 1.);
+}`;
+  const sh = (type, src) => { const o = gl.createShader(type); gl.shaderSource(o, src); gl.compileShader(o); return gl.getShaderParameter(o, gl.COMPILE_STATUS) ? o : null; };
+  const vs = sh(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'), fs = sh(gl.FRAGMENT_SHADER, FS);
+  if (!vs || !fs) return;
+  const pr = gl.createProgram(); gl.attachShader(pr, vs); gl.attachShader(pr, fs); gl.linkProgram(pr);
+  if (!gl.getProgramParameter(pr, gl.LINK_STATUS)) return;
+  gl.useProgram(pr);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW); // один большой треугольник на весь экран
+  const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = { r: gl.getUniformLocation(pr, 'r'), t: gl.getUniformLocation(pr, 't'), h: gl.getUniformLocation(pr, 'h'), k: gl.getUniformLocation(pr, 'k') };
+  const still = () => th.lite || th.calm; // лёгкий/спокойный режим: картинка почти не двигается, видеокарту не грузим
+  function draw(ms) {
+    const w = Math.max(2, Math.round(innerWidth * .5)), hh = Math.max(2, Math.round(innerHeight * .5)); // рисуем в половинном разрешении — фон мягкий, а видеокарте втрое легче
+    if (cv.width !== w || cv.height !== hh) { cv.width = w; cv.height = hh; gl.viewport(0, 0, w, hh); }
+    const tgt = lastHue >= 0 ? lastHue : 205, dt = Math.min(.05, Math.max(0, (ms - AURA.last) / 1000)); AURA.last = ms;
+    if (AURA.h < 0 || still()) AURA.h = tgt; else AURA.h += (((tgt - AURA.h + 540) % 360) - 180) * .06; // цвет перетекает плавно, по короткой дуге
+    AURA.h = (AURA.h + 360) % 360;
+    AURA.kk += (AURA.k - AURA.kk) * .35;
+    if (!still()) AURA.t += dt * (1 + AURA.kk * 1.5); // на бите течение чуть ускоряется
+    gl.uniform2f(U.r, w, hh); gl.uniform1f(U.t, AURA.t); gl.uniform1f(U.h, AURA.h); gl.uniform1f(U.k, still() ? 0 : AURA.kk);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+  function frame(ms) {
+    AURA.raf = 0; if (!AURA.show || document.hidden || AURA.dead) return;
+    AURA.raf = requestAnimationFrame(frame);
+    if (ms - AURA.last < (still() ? 1000 : 33)) return; // ~30 кадров/с, в лёгком режиме — раз в секунду
+    draw(ms);
+  }
+  AURA.go = () => { if (AURA.show && !AURA.raf && !document.hidden) { AURA.last = performance.now(); AURA.raf = requestAnimationFrame(frame); } };
+  document.addEventListener('visibilitychange', () => AURA.go());
+  cv.addEventListener('webglcontextlost', e => { e.preventDefault(); AURA.dead = true; auraSet(false); });
+  AURA.ok = true;
+})();
 
 /* ---------- Хранилище ---------- */
 async function persistInfo() {
