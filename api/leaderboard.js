@@ -62,11 +62,18 @@ module.exports = async (req, res) => {
 
   try {
     if (remove) {
-      await redis([
+      const [oldPid] = await redis([['HGET', 'sx:userpids', id]]);
+
+      const cmds = [
         ['ZREM', 'sx:lb', id],
         ['HDEL', 'sx:names', id],
-        ['HDEL', 'sx:tracks', id]
-      ]);
+        ['HDEL', 'sx:tracks', id],
+        ['HDEL', 'sx:userpids', id]
+      ];
+
+      if (oldPid) cmds.push(['HDEL', 'sx:pids', oldPid]);
+
+      await redis(cmds);
     } else if (Number.isFinite(sec) && sec >= 0 && sec <= 3.2e8) {
       const cmds = [
         ['ZADD', 'sx:lb', 'GT', String(Math.floor(sec)), id],
@@ -90,25 +97,45 @@ module.exports = async (req, res) => {
 
     const ids = flat.filter((_, i) => i % 2 === 0);
 
-    const [names, favs] = ids.length
+    const [names, favs, storedPids] = ids.length
       ? await redis([
           ['HMGET', 'sx:names', ...ids],
-          ['HMGET', 'sx:tracks', ...ids]
+          ['HMGET', 'sx:tracks', ...ids],
+          ['HMGET', 'sx:userpids', ...ids]
         ])
-      : [[], []];
+      : [[], [], []];
+
+    const pids = storedPids.map(
+      pid => pid || crypto.randomBytes(8).toString('hex')
+    );
+
+    const pidCommands = [];
+
+    ids.forEach((uid, i) => {
+      pidCommands.push(['HSET', 'sx:userpids', uid, pids[i]]);
+      pidCommands.push(['HSET', 'sx:pids', pids[i], uid]);
+    });
+
+    if (pidCommands.length) await redis(pidCommands);
 
     const top = ids.map((uid, i) => ({
       name: names[i] || 'user',
       track: favs[i] || '',
       sec: Number(flat[i * 2 + 1]),
-      me: uid === id
+      me: uid === id,
+      pid: pids[i]
     }));
 
     res.status(200).json({
       top,
-      me: rank === null ? null : { rank: rank + 1, sec: Number(mine) }
+      me: rank === null ? null : {
+        rank: rank + 1,
+        sec: Number(mine)
+      }
     });
+
   } catch (e) {
     res.status(502).json({ error: 'storage' });
   }
 };
+    
