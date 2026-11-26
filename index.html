@@ -501,6 +501,9 @@ main{max-width:none;margin:0;padding-left:max(18px,env(safe-area-inset-left));pa
 .lbr .meta span.seen{display:block}
 .lbc .seen{color:#fff;opacity:.85}
 .seen.on{color:#8dffb8!important;opacity:1}
+.lv-r .ava{position:relative;width:44px;height:44px;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 1.5px rgb(255 255 255 / .3)}
+.lv-r .fb{position:absolute;inset:0;z-index:0;display:grid;place-items:center;font-weight:800;font-size:18px;color:rgb(255 255 255 / .85);background:linear-gradient(135deg,hsl(calc(var(--h) + var(--o,0)) 80% 50%),hsl(calc(var(--h) + var(--o,0) + 50) 70% 22%))}
+.lv-r .av{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
 </style>
 </head>
 <body>
@@ -1370,7 +1373,7 @@ async function avCheck() { // что именно мешает аватарка�
   const L = [];
   for (const u of top.slice(0, 3)) {
     if (!u.pid) { L.push(`${u.name}: сервер не прислал код аватарки (pid)`); continue; }
-    try { const r = await fetch('/api/avatar?p=' + u.pid + '&debug=1'), ty = r.headers.get('content-type') || ''; L.push(`${u.name}: ` + (ty.includes('json') ? (await r.text()).slice(0, 260) : `ответ ${r.status} (старый файл avatar.js — обнови)`)); } catch (e) { L.push(`${u.name}: нет связи с /api/avatar`); }
+    try { const r = await fetch('/api/avatar?p=' + u.pid + '&debug=1'), ty = r.headers.get('content-type') || ''; L.push(`${u.name}: ` + (ty.includes('json') ? (await r.text()).slice(0, 220) : `ответ ${r.status} (старый файл avatar.js — обнови)`)); const shown = await new Promise(res => { const im = new Image(); im.onload = () => res('✅ картинка грузится'); im.onerror = () => res('❌ картинка НЕ грузится'); im.src = '/api/avatar?p=' + u.pid + '&v=' + Date.now(); }); L.push('   ' + shown); } catch (e) { L.push(`${u.name}: нет связи с /api/avatar`); }
   }
   const me = tg.initDataUnsafe && tg.initDataUnsafe.user; L.push('Твоё фото из Telegram: ' + (me && me.photo_url ? 'есть' : 'нет (скрыто настройками приватности)'));
   out.textContent = L.join('\n');
@@ -1391,7 +1394,7 @@ const CROWN = '<svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 1
 function lbAvatar(u) { // аватарка по публичному коду; если фото нет — буква на цветном фоне
   const ini = esc([...(u.name || '?').replace('@', '')][0] || '?').toUpperCase(), o = hue({ title: u.name || '' });
   const mine = u.me && tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.photo_url; // своё фото Telegram отдаёт сам, без сервера
-  return `<div class="fb" style="--o:${o}">${ini}</div>` + (u.pid ? `<img class="av" alt="" loading="lazy" src="/api/avatar?p=${u.pid}">` : '') + (mine ? `<img class="av" alt="" referrerpolicy="no-referrer" src="${esc(mine)}">` : '');
+  return `<div class="fb" style="--o:${o}">${ini}</div>` + (u.pid ? `<img class="av" alt="" src="/api/avatar?p=${u.pid}&v=3">` : '') + (mine ? `<img class="av" alt="" referrerpolicy="no-referrer" src="${esc(mine)}">` : '');
 }
 function seenHtml(u, c) { // «онлайн» / «был(а) N назад»
   const t = u.me ? Date.now() : u.seen; if (!t) return ''; const m = Math.floor((Date.now() - t) / 60000); let x, on = 0;
@@ -2321,7 +2324,9 @@ function renderLive() {
   const el = $('#st-live'), on = liveOn(), ok = tg && tg.initData; $('#lv-toggle').hidden = !ok; $('#lv-toggle').textContent = on ? 'Не показывать, что я слушаю' : 'Показывать, что я слушаю';
   if (!ok) return el.innerHTML = '<p class="empty">Работает только внутри Telegram.</p>';
   if (liveErr) return el.innerHTML = `<p class="empty">Недоступно: ${esc(liveErr)}.</p>`;
-  el.innerHTML = liveList.length ? liveList.map(u => `<div class="glass lv-r"><div class="meta"><b>${esc(u.name)}${u.me ? ' (ты)' : ''}</b><span>♪ ${esc(u.track)}</span></div>${u.me ? '' : ['🔥', '❤️', '👏'].map(e => `<button data-act="react" data-to="${u.id}" data-e="${e}">${e}</button>`).join('')}</div>`).join('') : `<p class="empty">Сейчас никто не слушает. ${on ? '' : 'Включи показ — и тебя увидят другие.'}</p>`;
+  const others = liveList.filter(u => !u.me).length;
+  el.innerHTML = (liveList.length ? liveList.map(u => `<div class="glass lv-r"><div class="ava">${lbAvatar(u)}</div><div class="meta"><b>${esc(u.name)}${u.me ? ' (ты)' : ''}</b><span>${u.track ? '♪ ' + esc(u.track) : 'на паузе'}</span></div>${u.me || !u.track ? '' : ['🔥', '❤️', '👏'].map(e => `<button data-act="react" data-to="${u.id}" data-e="${e}">${e}</button>`).join('')}</div>`).join('') : `<p class="empty">Сейчас никого нет. ${on ? '' : 'Включи показ — и тебя увидят другие.'}</p>`)
+    + (on && !others ? '<p class="note">Других людей пока не видно: они появятся здесь, когда сами нажмут «Показывать, что я слушаю» и откроют приложение. Реакции 🔥 ❤️ 👏 ставятся на чужие треки — на своей строке кнопок нет.</p>' : '');
 }
 audio.addEventListener('pause', () => liveBeat(true));
 setInterval(() => { if (document.hidden) return; liveBeat(); liveReacts(); if (tab === 'stats') liveLoad(); }, 30000);
