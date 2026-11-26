@@ -11,7 +11,7 @@ async function redis(cmds) {
   return (await r.json()).map(x => x.result);
 }
 
-// Проверка подписи Telegram.WebApp.initData (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)
+// Проверка подписи Telegram.WebApp.initData
 function checkInitData(raw, botToken) {
   const p = new URLSearchParams(raw), hash = p.get('hash');
   if (!hash) return null;
@@ -21,7 +21,7 @@ function checkInitData(raw, botToken) {
   const calc = crypto.createHmac('sha256', secret).update(str).digest('hex');
   const a = Buffer.from(calc), b = Buffer.from(hash);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-  if (Date.now() / 1000 - Number(p.get('auth_date')) > 86400) return null; // подпись не старше суток
+  if (Date.now() / 1000 - Number(p.get('auth_date')) > 86400) return null;
   try { return JSON.parse(p.get('user')); } catch (e) { return null; }
 }
 
@@ -33,14 +33,16 @@ module.exports = async (req, res) => {
   const user = typeof initData === 'string' && tokens.map(t => checkInitData(initData, t)).find(Boolean);
   if (!user || !user.id) return res.status(401).json({ error: 'bad initData' });
   const id = String(user.id);
-  const pidOf = x => crypto.createHash('sha256').update('sx-pid:' + tokens[0] + ':' + x).digest('hex').slice(0, 16); // публичный код вместо Telegram ID
+  const pidOf = x => crypto.createHash('sha256').update('sx-pid:' + tokens[0] + ':' + x).digest('hex').slice(0, 16);
+  const photo = typeof user.photo_url === 'string' && /^https:\/\/t\.me\/i\/userpic\//.test(user.photo_url) ? user.photo_url.slice(0, 300) : '';
   const name = (user.username ? '@' + user.username : user.first_name || 'user').slice(0, 24);
   try {
-    if (remove) await redis([['ZREM', 'sx:lb', id], ['HDEL', 'sx:names', id], ['HDEL', 'sx:tracks', id], ['HDEL', 'sx:pids', pidOf(id)]]);
+    if (remove) await redis([['ZREM', 'sx:lb', id], ['HDEL', 'sx:names', id], ['HDEL', 'sx:tracks', id], ['HDEL', 'sx:pids', pidOf(id)], ['HDEL', 'sx:photos', id]]);
     else if (Number.isFinite(sec) && sec >= 0 && sec <= 3.2e8) {
       const cmds = [['ZADD', 'sx:lb', 'GT', String(Math.floor(sec)), id], ['HSET', 'sx:names', id, name], ['HSET', 'sx:pids', pidOf(id), id]];
+      if (photo) cmds.push(['HSET', 'sx:photos', id, photo]);
       const fav = typeof track === 'string' ? track.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 60) : '';
-      if (fav) cmds.push(['HSET', 'sx:tracks', id, fav]); // самый часто слушаемый трек (только название)
+      if (fav) cmds.push(['HSET', 'sx:tracks', id, fav]);
       await redis(cmds);
     }
     const [flat, rank, mine] = await redis([['ZREVRANGE', 'sx:lb', 0, 9, 'WITHSCORES'], ['ZREVRANK', 'sx:lb', id], ['ZSCORE', 'sx:lb', id]]);
