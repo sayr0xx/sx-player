@@ -504,6 +504,10 @@ main{max-width:none;margin:0;padding-left:max(18px,env(safe-area-inset-left));pa
 .lv-r .ava{position:relative;width:44px;height:44px;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 1.5px rgb(255 255 255 / .3)}
 .lv-r .fb{position:absolute;inset:0;z-index:0;display:grid;place-items:center;font-weight:800;font-size:18px;color:rgb(255 255 255 / .85);background:linear-gradient(135deg,hsl(calc(var(--h) + var(--o,0)) 80% 50%),hsl(calc(var(--h) + var(--o,0) + 50) 70% 22%))}
 .lv-r .av{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
+.viz-modes{position:absolute;left:14px;right:14px;bottom:calc(var(--sb) + 176px);display:flex;gap:6px;overflow-x:auto;z-index:3;scrollbar-width:none}
+.viz-modes::-webkit-scrollbar{display:none}
+.vmb{flex:none;padding:8px 14px;border-radius:999px;font:700 12px inherit}
+.vmb.on{background:var(--a)!important;color:var(--ink)}
 </style>
 </head>
 <body>
@@ -733,7 +737,8 @@ main{max-width:none;margin:0;padding-left:max(18px,env(safe-area-inset-left));pa
 <div id="viz-ov" class="ov viz" hidden>
   <canvas id="viz-cv"></canvas>
   <button class="ib wclose vg" data-act="vizclose" data-i="close" aria-label="Закрыть"></button>
-  <div class="viz-btns"><button id="viz-rec" class="vzb vg" data-act="vizrec">● Клип 15 с</button><button id="viz-save" class="vzb vg" data-act="vizsave" hidden>💾 В галерею</button><button id="viz-share" class="vzb vg" data-act="vizshare" hidden>Поделиться</button></div>
+  <div class="viz-btns"><button id="viz-rec" class="vzb vg" data-act="vizrec">● Клип 12 с · Full HD</button><button id="viz-save" class="vzb vg" data-act="vizsave" hidden>💾 В галерею</button><button id="viz-share" class="vzb vg" data-act="vizshare" hidden>Поделиться</button></div>
+  <div class="viz-modes" id="viz-modes"></div>
   <div class="viz-card vg"><div class="vc-t"><b id="viz-t"></b><span id="viz-a"></span></div><div class="vc-bar"><i id="viz-prog"></i></div>
     <div class="vc-ctl"><button class="ib" data-act="prev" data-i="prev" aria-label="Предыдущий"></button><button id="viz-toggle" class="ib big" data-act="toggle" aria-label="Играть / пауза"></button><button class="ib" data-act="next" data-i="next" aria-label="Следующий"></button></div></div>
 </div>
@@ -1254,6 +1259,7 @@ document.addEventListener('click', async e => {
   else if (a === 'cutplay') cutPlay();
   else if (a === 'cutmake') cutMake();
   else if (a === 'cutsend') cutSend();
+  else if (a === 'vizmode') vizMode(+el.dataset.v);
   else if (a === 'vizsave') vizSave();
   else if (a === 'vizrec') vizRec();
   else if (a === 'vizshare') vizShare();
@@ -2098,7 +2104,7 @@ function wrapOpen() {
 
 /* ---------- 5. Визуализатор: лава-лампа, вращающаяся обложка, жидкое стекло ---------- */
 const VZ = { on: false, raf: 0, mode: 0, bmp: null, id: '', lock: null, last: 0, t: 0, rot: 0, h: -1, ht: 205, k: 0, s: new Float32Array(64), lava: undefined };
-const VZN = ['Пластинка', 'Волна', 'Минимализм'];
+const VZN = ['Карточка', 'Пластинка', 'Кассета', 'Круг', 'Волна'];
 const LAVA_FS = `
 #ifdef GL_FRAGMENT_PRECISION_HIGH
 precision highp float;
@@ -2131,39 +2137,132 @@ function lavaInit() {
     return { c, gl, r: gl.getUniformLocation(pr, 'r'), t: gl.getUniformLocation(pr, 't'), h: gl.getUniformLocation(pr, 'h'), k: gl.getUniformLocation(pr, 'k') };
   } catch (e) { return null; }
 }
+Object.assign(VZ, { dt: .03, prog: 0, arm: 78, kp: 0, lb: -9, rings: [], blur: null, tt: '', aa: '', rc: null, rg: null,
+  pt: Array.from({ length: 40 }, () => ({ x: Math.random(), y: Math.random(), r: .003 + Math.random() * .008, v: .02 + Math.random() * .05, a: .15 + Math.random() * .35, s: Math.random() * 6 })) });
+try { const m = +localStorage.getItem('sx-vizmode'); if (m >= 0 && m < VZN.length) VZ.mode = m; } catch (e) {}
+VZ.noise = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), d = g.createImageData(128, 128); for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; } g.putImageData(d, 0, 0); return c; })();
+const FF = '-apple-system,"Segoe UI",Roboto,sans-serif';
+function fitTxt(g, t, mw) { if (g.measureText(t).width <= mw) return t; while (t.length > 1 && g.measureText(t + '…').width > mw) t = t.slice(0, -1); return t + '…'; }
+function drawCover(g, im, x, y, w, h) { const s = Math.max(w / im.width, h / im.height), sw = w / s, sh = h / s; g.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, x, y, w, h); }
+function pic(g, x, y, w, h, hh) { // обложка или красивая заглушка
+  if (VZ.bmp) return drawCover(g, VZ.bmp, x, y, w, h);
+  const q = g.createLinearGradient(x, y, x + w, y + h); q.addColorStop(0, `hsl(${hh + 20} 85% 58%)`); q.addColorStop(1, `hsl(${hh + 60} 75% 28%)`); g.fillStyle = q; g.fillRect(x, y, w, h);
+  g.fillStyle = 'rgba(255,255,255,.85)'; g.font = `${Math.min(w, h) * .5}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('♪', x + w / 2, y + h / 2);
+}
 async function vizCover() {
-  const t = cur; if (!t || VZ.id === t.id) return; VZ.id = t.id; VZ.bmp = null; $('#viz-t').textContent = t.title;
-  const a = artistOf(t); $('#viz-a').textContent = a === 'Без исполнителя' ? 'sayr0xx player' : a;
+  const t = cur; if (!t || VZ.id === t.id) return; VZ.id = t.id; VZ.bmp = null; VZ.blur = null;
+  const i = t.title.indexOf(' - '), a = artistOf(t); VZ.tt = i > 0 ? t.title.slice(i + 3).trim() : t.title; VZ.aa = a === 'Без исполнителя' ? 'sayr0xx player' : a; $('#viz-t').textContent = VZ.tt; $('#viz-a').textContent = VZ.aa;
   try { if (t.cover) VZ.bmp = await createImageBitmap(t.cover); } catch (e) {}
+  if (VZ.bmp) { const b = document.createElement('canvas'); b.width = 27; b.height = 48; drawCover(b.getContext('2d'), VZ.bmp, 0, 0, 27, 48); VZ.blur = b; } // крошечная копия: при растяжении получается мягкое размытие
   const h = await coverHueOf(t); if (cur === t) VZ.ht = h;
 }
-function vizSize() { const c = $('#viz-cv'); c.width = Math.round(innerWidth * .75); c.height = Math.round(innerHeight * .75); }
+function vizSize() { const c = $('#viz-cv'); c.width = Math.round(innerWidth * .9); c.height = Math.round(innerHeight * .9); }
+function vizModes() { $('#viz-modes').innerHTML = VZN.map((n, i) => `<button class="vmb vg${i === VZ.mode ? ' on' : ''}" data-act="vizmode" data-v="${i}">${n}</button>`).join(''); }
+function vizMode(i) { VZ.mode = i; try { localStorage.setItem('sx-vizmode', String(i)); } catch (e) {} vizModes(); }
 function vizOpen() {
-  if (!cur) return toast('Сначала включи трек'); closeTool(); VZ.on = true; VZ.id = ''; VZ.h = -1; $('#viz-ov').hidden = false; vizSize(); vizCover(); toast('Нажми на экран — сменится стиль');
+  if (!cur) return toast('Сначала включи трек'); closeTool(); VZ.on = true; VZ.id = ''; VZ.h = -1; $('#viz-ov').hidden = false; vizSize(); vizModes(); vizCover(); toast('Выбери стиль внизу или нажми на экран');
   try { navigator.wakeLock && navigator.wakeLock.request('screen').then(l => { VZ.lock = l; }).catch(() => {}); } catch (e) {}
   if (!VZ.raf) VZ.raf = requestAnimationFrame(vizFrame);
 }
 function vizClose() { if (VZ.mr && VZ.mr.state === 'recording') VZ.mr.stop(); VZ.on = false; $('#viz-ov').hidden = true; try { VZ.lock && VZ.lock.release(); } catch (e) {} VZ.lock = null; }
-$('#viz-cv').addEventListener('click', () => { VZ.mode = (VZ.mode + 1) % 3; toast('Стиль: ' + VZN[VZ.mode]); });
+$('#viz-cv').addEventListener('click', () => vizMode((VZ.mode + 1) % VZN.length));
 addEventListener('resize', () => VZ.on && vizSize());
-function vinyl(g, cx, cy, R, h) {
+function lavaDraw(W, H, h) {
+  if (VZ.lava === undefined) VZ.lava = lavaInit(); const L = VZ.lava; if (!L) return null;
+  const lw = Math.max(2, Math.round(W * .4)), lh = Math.max(2, Math.round(H * .4)); if (L.c.width !== lw || L.c.height !== lh) { L.c.width = lw; L.c.height = lh; L.gl.viewport(0, 0, lw, lh); }
+  L.gl.uniform2f(L.r, lw, lh); L.gl.uniform1f(L.t, VZ.t); L.gl.uniform1f(L.h, h); L.gl.uniform1f(L.k, VZ.k); L.gl.drawArrays(L.gl.TRIANGLES, 0, 3); return L.c;
+}
+function caption(g, W, u, y) {
+  g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = u * .03; g.fillStyle = '#fff'; g.font = `800 ${u * .058}px ${FF}`; g.fillText(fitTxt(g, VZ.tt, W * .86), W / 2, y);
+  g.fillStyle = 'rgba(255,255,255,.78)'; g.font = `500 ${u * .042}px ${FF}`; g.fillText(fitTxt(g, VZ.aa, W * .86), W / 2, y + u * .075); g.restore();
+}
+function disc(g, cx, cy, R, h) { // вращающаяся обложка-пластинка со стеклянным бликом
   g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = R * .25; g.shadowOffsetY = R * .08; g.beginPath(); g.arc(cx, cy, R * 1.04, 0, 7); g.fillStyle = 'rgba(8,8,14,.55)'; g.fill(); g.restore();
-  g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip(); g.translate(cx, cy); g.rotate(VZ.rot);
-  if (VZ.bmp) g.drawImage(VZ.bmp, -R, -R, R * 2, R * 2);
-  else { const q = g.createLinearGradient(-R, -R, R, R); q.addColorStop(0, `hsl(${h + 20} 85% 58%)`); q.addColorStop(1, `hsl(${h + 60} 75% 28%)`); g.fillStyle = q; g.fillRect(-R, -R, R * 2, R * 2); g.strokeStyle = 'rgba(255,255,255,.15)'; g.lineWidth = 2; for (let k = 1; k < 5; k++) { g.beginPath(); g.arc(0, 0, R * k / 5, 0, 7); g.stroke(); } g.fillStyle = 'rgba(255,255,255,.3)'; g.fillRect(-R * .03, -R, R * .06, R * .5); }
-  g.restore();
-  const sh = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R); sh.addColorStop(0, 'rgba(255,255,255,.34)'); sh.addColorStop(.35, 'rgba(255,255,255,0)'); sh.addColorStop(.7, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(255,255,255,.12)');
-  g.fillStyle = sh; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+  g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip(); g.translate(cx, cy); g.rotate(VZ.rot); pic(g, -R, -R, R * 2, R * 2, h); g.restore();
+  const sh = g.createLinearGradient(cx - R, cy - R, cx + R, cy + R); sh.addColorStop(0, 'rgba(255,255,255,.34)'); sh.addColorStop(.35, 'rgba(255,255,255,0)'); sh.addColorStop(.7, 'rgba(255,255,255,0)'); sh.addColorStop(1, 'rgba(255,255,255,.12)'); g.fillStyle = sh; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
   g.lineWidth = R * .025; g.strokeStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.stroke();
   g.fillStyle = `hsl(${h} 70% 6%)`; g.beginPath(); g.arc(cx, cy, R * .1, 0, 7); g.fill(); g.lineWidth = R * .02; g.strokeStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.arc(cx, cy, R * .1, 0, 7); g.stroke();
 }
+function drawCard(g, W, H, u, h) { // карточка как в сторис Telegram: обложка сверху, тёмная панель с названием и «эквалайзером»
+  const cw = u * .8, ph = u * .2, x = (W - cw) / 2, y = H * .46 - (cw + ph) / 2, rad = u * .055, sc = 1 + VZ.k * .012;
+  g.save(); g.translate(W / 2, H * .46); g.scale(sc, sc); g.translate(-W / 2, -H * .46);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = u * .1; g.shadowOffsetY = u * .04; rr(g, x, y, cw, cw + ph, rad); g.fillStyle = '#000'; g.fill(); g.restore();
+  g.save(); rr(g, x, y, cw, cw + ph, rad); g.clip(); pic(g, x, y, cw, cw, h);
+  g.fillStyle = `hsla(${h} 42% 22% / .94)`; g.fillRect(x, y + cw, cw, ph);
+  const pg = g.createLinearGradient(0, y + cw, 0, y + cw + ph); pg.addColorStop(0, 'rgba(255,255,255,.14)'); pg.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = pg; g.fillRect(x, y + cw, cw, ph);
+  const by = y + cw + ph - u * .014; g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(x, by, cw, u * .014); g.fillStyle = '#fff'; g.fillRect(x, by, cw * VZ.prog, u * .014); g.restore();
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff'; g.font = `800 ${u * .06}px ${FF}`; g.fillText(fitTxt(g, VZ.tt, cw - u * .32), x + u * .05, y + cw + ph * .46);
+  g.fillStyle = 'rgba(255,255,255,.72)'; g.font = `500 ${u * .043}px ${FF}`; g.fillText(fitTxt(g, VZ.aa, cw - u * .32), x + u * .05, y + cw + ph * .78);
+  for (let i = 0; i < 5; i++) { const bh = u * (.022 + VZ.s[2 + i * 7] * .075); g.fillStyle = '#fff'; rr(g, x + cw - u * .17 + i * u * .028, y + cw + ph * .46 - bh / 2, u * .015, bh, u * .0075); g.fill(); }
+  g.restore();
+}
+function drawRecord(g, W, H, u, h) { // проигрыватель: пластинка, вращающаяся этикетка-обложка и тонарм, который опускается на диск
+  const cx = W / 2, cy = H * .4, Rr = u * .4, k = VZ.k, play = !audio.paused;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = u * .08; g.shadowOffsetY = u * .03; rr(g, cx - u * .47, cy - u * .5, u * .94, u, u * .05); g.fillStyle = 'rgba(18,20,30,.62)'; g.fill(); g.restore();
+  g.lineWidth = u * .004; g.strokeStyle = 'rgba(255,255,255,.22)'; rr(g, cx - u * .47, cy - u * .5, u * .94, u, u * .05); g.stroke();
+  const rg = g.createRadialGradient(cx, cy, Rr * .15, cx, cy, Rr); rg.addColorStop(0, '#15151b'); rg.addColorStop(1, '#050507'); g.fillStyle = rg; g.beginPath(); g.arc(cx, cy, Rr * (1 + k * .01), 0, 7); g.fill();
+  g.lineWidth = Math.max(1, u * .0016); for (let i = 0; i < 16; i++) { g.strokeStyle = `rgba(255,255,255,${i % 3 ? .035 : .07})`; g.beginPath(); g.arc(cx, cy, Rr * (.42 + i * .036), 0, 7); g.stroke(); }
+  if (g.createConicGradient) { const cg = g.createConicGradient(-.6, cx, cy); cg.addColorStop(0, 'rgba(255,255,255,.16)'); cg.addColorStop(.12, 'rgba(255,255,255,0)'); cg.addColorStop(.5, 'rgba(255,255,255,.12)'); cg.addColorStop(.62, 'rgba(255,255,255,0)'); cg.addColorStop(1, 'rgba(255,255,255,.16)'); g.fillStyle = cg; g.beginPath(); g.arc(cx, cy, Rr, 0, 7); g.fill(); }
+  g.strokeStyle = `hsla(${h + 20} 100% 70% / ${.15 + k * .5})`; g.lineWidth = u * .008; g.beginPath(); g.arc(cx, cy, Rr * 1.02, 0, 7); g.stroke();
+  const Lr = Rr * .4; g.save(); g.beginPath(); g.arc(cx, cy, Lr, 0, 7); g.clip(); g.translate(cx, cy); g.rotate(VZ.rot); pic(g, -Lr, -Lr, Lr * 2, Lr * 2, h); g.restore();
+  g.lineWidth = u * .006; g.strokeStyle = 'rgba(255,255,255,.5)'; g.beginPath(); g.arc(cx, cy, Lr, 0, 7); g.stroke(); g.fillStyle = '#0a0a0e'; g.beginPath(); g.arc(cx, cy, u * .014, 0, 7); g.fill();
+  VZ.arm += ((play ? 109 + VZ.prog * 10 : 78) - VZ.arm) * .06; const th = VZ.arm * Math.PI / 180, Px = cx + u * .4, Py = cy - u * .46, Tx = Px + Math.cos(th) * u * .61, Ty = Py + Math.sin(th) * u * .61;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = u * .02; g.lineCap = 'round';
+  g.strokeStyle = '#2b2d36'; g.lineWidth = u * .034; g.beginPath(); g.moveTo(Px, Py); g.lineTo(Px - Math.cos(th) * u * .08, Py - Math.sin(th) * u * .08); g.stroke();
+  g.strokeStyle = '#d5d9e2'; g.lineWidth = u * .015; g.beginPath(); g.moveTo(Px, Py); g.lineTo(Tx, Ty); g.stroke();
+  g.translate(Tx, Ty); g.rotate(th + .3); g.fillStyle = '#e9ecf2'; rr(g, -u * .02, -u * .012, u * .075, u * .03, u * .008); g.fill(); g.restore();
+  const bg = g.createRadialGradient(Px - u * .01, Py - u * .01, 0, Px, Py, u * .055); bg.addColorStop(0, '#f1f3f8'); bg.addColorStop(1, '#6b6f7c'); g.fillStyle = bg; g.beginPath(); g.arc(Px, Py, u * .05, 0, 7); g.fill();
+  caption(g, W, u, cy + u * .5 + u * .13);
+}
+function drawTape(g, W, H, u, h) { // кассета: этикетка с обложкой, окошко и крутящиеся бобины
+  const cx = W / 2, cy = H * .4, w = u * .9, hh = u * .6, x = cx - w / 2, y = cy - hh / 2, k = VZ.k;
+  g.save(); g.translate(cx, cy); g.scale(1 + k * .012, 1 + k * .012); g.translate(-cx, -cy);
+  g.save(); g.shadowColor = 'rgba(0,0,0,.55)'; g.shadowBlur = u * .08; g.shadowOffsetY = u * .03; rr(g, x, y, w, hh, u * .04); const bg = g.createLinearGradient(x, y, x, y + hh); bg.addColorStop(0, `hsl(${h} 25% 30%)`); bg.addColorStop(1, `hsl(${h} 30% 14%)`); g.fillStyle = bg; g.fill(); g.restore();
+  g.lineWidth = u * .004; g.strokeStyle = 'rgba(255,255,255,.25)'; rr(g, x, y, w, hh, u * .04); g.stroke();
+  const lx = x + w * .07, ly = y + hh * .09, lw = w * .86, lh = hh * .46; rr(g, lx, ly, lw, lh, u * .02); g.fillStyle = 'rgba(244,238,226,.94)'; g.fill();
+  g.save(); rr(g, lx + lh * .08, ly + lh * .08, lh * .84, lh * .84, u * .015); g.clip(); pic(g, lx + lh * .08, ly + lh * .08, lh * .84, lh * .84, h); g.restore();
+  const tx = lx + lh * 1.05, tw = lw - lh * 1.15; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillStyle = '#23211e'; g.font = `800 ${u * .05}px ${FF}`; g.fillText(fitTxt(g, VZ.tt, tw), tx, ly + lh * .45);
+  g.fillStyle = '#5b5750'; g.font = `500 ${u * .036}px ${FF}`; g.fillText(fitTxt(g, VZ.aa, tw), tx, ly + lh * .72); g.fillStyle = `hsl(${h} 80% 55%)`; g.fillRect(lx, ly + lh - u * .012, lw, u * .012);
+  const wx = x + w * .22, wy = y + hh * .62, ww = w * .56, wh = hh * .26; rr(g, wx, wy, ww, wh, wh / 2); g.fillStyle = '#08080c'; g.fill();
+  [[wx + ww * .27, wh * .42 * (1.15 - VZ.prog * .5)], [wx + ww * .73, wh * .42 * (.65 + VZ.prog * .5)]].forEach(([rx, rad]) => {
+    g.fillStyle = '#3a2a22'; g.beginPath(); g.arc(rx, wy + wh / 2, rad, 0, 7); g.fill(); g.save(); g.translate(rx, wy + wh / 2); g.rotate(VZ.rot * 2); g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = u * .006;
+    g.beginPath(); g.arc(0, 0, wh * .2, 0, 7); g.stroke(); for (let i = 0; i < 6; i++) { g.rotate(Math.PI / 3); g.beginPath(); g.moveTo(wh * .08, 0); g.lineTo(wh * .2, 0); g.stroke(); } g.restore(); });
+  g.fillStyle = 'rgba(255,255,255,.35)'; [[x + w * .04, y + hh * .08], [x + w * .96, y + hh * .08], [x + w * .04, y + hh * .92], [x + w * .96, y + hh * .92]].forEach(q => { g.beginPath(); g.arc(q[0], q[1], u * .01, 0, 7); g.fill(); });
+  g.restore(); caption(g, W, u, cy + hh / 2 + u * .14);
+}
+function drawRing(g, W, H, u, h) {
+  const cx = W / 2, cy = H * .4, N = 64, R = u * .27 * (1 + VZ.k * .05); g.lineCap = 'round'; g.lineWidth = Math.max(2, R * .045);
+  for (let i = 0; i < N * 2; i++) { const v = VZ.s[i < N ? i : 2 * N - 1 - i], a = i / (N * 2) * Math.PI * 2 - Math.PI / 2 + VZ.rot * .15, r0 = R * 1.12, r1 = r0 + R * .06 + v * R * .55; g.strokeStyle = `hsla(${h + i * 1.2} 100% 78% / .92)`; g.beginPath(); g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.stroke(); }
+  disc(g, cx, cy, R, h); caption(g, W, u, cy + R * 1.9 + u * .08);
+}
+function drawBars(g, W, H, u, h) {
+  const N = 64, bw = W * .92 / N, x0 = W * .04, y0 = H * .62, mh = u * .5; disc(g, W / 2, H * .3, u * .27, h);
+  const q = g.createLinearGradient(0, y0 - mh, 0, y0); q.addColorStop(0, `hsla(${h + 25} 100% 82% / .95)`); q.addColorStop(1, `hsla(${h} 100% 58% / .75)`);
+  for (let i = 0; i < N; i++) { const bh = Math.max(u * .012, VZ.s[i] * mh); g.fillStyle = q; rr(g, x0 + i * bw + bw * .15, y0 - bh, bw * .7, bh, bw * .35); g.fill(); g.globalAlpha = .16; rr(g, x0 + i * bw + bw * .15, y0 + u * .008, bw * .7, bh * .35, bw * .35); g.fill(); g.globalAlpha = 1; }
+  caption(g, W, u, y0 + u * .14);
+}
+function scene(g, W, H, h, rec) { // вся картинка: фон-лава, искры, кольца на бит, выбранный стиль, виньетка, зерно
+  const u = Math.min(W, H * 9 / 16), cx = W / 2, m = VZ.mode, k = VZ.k, dt = VZ.dt, cy = H * [.46, .4, .4, .4, .3][m];
+  g.setTransform(1, 0, 0, 1, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+  const lc = lavaDraw(W, H, h);
+  if (m === 0 && VZ.blur) { g.drawImage(VZ.blur, 0, 0, W, H); g.fillStyle = 'rgba(6,8,16,.4)'; g.fillRect(0, 0, W, H); if (lc) { g.globalCompositeOperation = 'screen'; g.globalAlpha = .35; g.drawImage(lc, 0, 0, W, H); g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1; } }
+  else if (lc) g.drawImage(lc, 0, 0, W, H);
+  else { const bg = g.createRadialGradient(cx, H * .4, 0, cx, H * .4, H * .7); bg.addColorStop(0, `hsl(${h} 80% 24%)`); bg.addColorStop(1, `hsl(${h} 70% 4%)`); g.fillStyle = bg; g.fillRect(0, 0, W, H); }
+  for (const p of VZ.pt) { p.y -= p.v * dt * (1 + k * 2.5); p.x += Math.sin(VZ.t * .6 + p.s) * .0003; if (p.y < -.05) { p.y = 1.05; p.x = Math.random(); } g.globalAlpha = Math.min(1, p.a * (.6 + k)); g.fillStyle = '#fff'; g.beginPath(); g.arc(p.x * W, p.y * H, p.r * u, 0, 7); g.fill(); } g.globalAlpha = 1;
+  if (k > .5 && k - VZ.kp > .1 && VZ.t - VZ.lb > .28) { VZ.rings.push(VZ.t); VZ.lb = VZ.t; } VZ.kp = k; VZ.rings = VZ.rings.filter(t0 => VZ.t - t0 < 1.1);
+  for (const t0 of VZ.rings) { const a = VZ.t - t0; g.strokeStyle = `hsla(${h + 20} 100% 80% / ${.4 * (1 - a / 1.1)})`; g.lineWidth = u * .008; g.beginPath(); g.arc(cx, cy, u * (.28 + a * .55), 0, 7); g.stroke(); }
+  [drawCard, drawRecord, drawTape, drawRing, drawBars][m](g, W, H, u, h);
+  const vg = g.createRadialGradient(cx, H * .5, u * .5, cx, H * .5, Math.max(W, H) * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.5)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
+  if (!g._gp) g._gp = g.createPattern(VZ.noise, 'repeat'); g.globalAlpha = .06; g.globalCompositeOperation = 'overlay'; g.fillStyle = g._gp; g.fillRect(0, 0, W, H); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+  if (rec) { g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = 'rgba(255,255,255,.55)'; g.font = `700 ${u * .035}px ${FF}`; g.fillText('sayr0xx player', W / 2, H * .93); }
+}
 function vizFrame(ms) {
   VZ.raf = 0; if (!VZ.on || document.hidden) return; VZ.raf = requestAnimationFrame(vizFrame);
-  if (ms - VZ.last < 28) return; const dt = Math.min(.06, (ms - VZ.last) / 1000); VZ.last = ms; VZ.t += dt; vizCover();
-  const play = !audio.paused; if (play) VZ.rot += dt * .55;
+  if (ms - VZ.last < 28) return; const dt = Math.min(.06, (ms - VZ.last) / 1000); VZ.last = ms; VZ.t += dt; VZ.dt = dt; vizCover();
+  const play = !audio.paused; if (play) VZ.rot += dt * .8;
   const ic = play ? IC.pause : IC.play, tg2 = $('#viz-toggle'); if (tg2._s !== ic) { tg2.innerHTML = ic; tg2._s = ic; }
-  $('#viz-prog').style.width = (audio.duration ? audio.currentTime / audio.duration * 100 : 0).toFixed(1) + '%';
-  const c = $('#viz-cv'), g = c.getContext('2d'), W = c.width, H = c.height, N = 64, sp = VZ.s, live = an && fbuf && play;
+  VZ.prog = audio.duration ? audio.currentTime / audio.duration : 0; $('#viz-prog').style.width = (VZ.prog * 100).toFixed(1) + '%';
+  const N = 64, sp = VZ.s, live = an && fbuf && play;
   if (VZ.h < 0) VZ.h = VZ.ht; else VZ.h += ((((VZ.ht - VZ.h) % 360) + 540) % 360 - 180) * .05; VZ.h = (VZ.h + 360) % 360; const h = VZ.h;
   if (live) an.getByteFrequencyData(fbuf);
   for (let i = 0; i < N; i++) {
@@ -2172,36 +2271,26 @@ function vizFrame(ms) {
     sp[i] += (v - sp[i]) * .45;
   }
   VZ.k += ((sp[1] + sp[2] + sp[3] + sp[4]) / 4 - VZ.k) * .4;
-  if (VZ.lava === undefined) VZ.lava = lavaInit(); const L = VZ.lava;
-  if (L) { const lw = Math.round(W * .4), lh = Math.round(H * .4); if (L.c.width !== lw || L.c.height !== lh) { L.c.width = lw; L.c.height = lh; L.gl.viewport(0, 0, lw, lh); } L.gl.uniform2f(L.r, lw, lh); L.gl.uniform1f(L.t, VZ.t); L.gl.uniform1f(L.h, h); L.gl.uniform1f(L.k, VZ.k); L.gl.drawArrays(L.gl.TRIANGLES, 0, 3); g.drawImage(L.c, 0, 0, W, H); }
-  else { const bg = g.createRadialGradient(W / 2, H * .4, 0, W / 2, H * .4, H * .7); bg.addColorStop(0, `hsl(${h} 80% 24%)`); bg.addColorStop(1, `hsl(${h} 70% 4%)`); g.fillStyle = bg; g.fillRect(0, 0, W, H); }
-  const cx = W / 2, m = VZ.mode, R = W * (m === 0 ? .27 : m === 1 ? .3 : .36) * (1 + VZ.k * .05), cy = H * (m === 1 ? .34 : .4); g.lineCap = 'round';
-  if (m === 0) {
-    g.lineWidth = Math.max(2, R * .045);
-    for (let i = 0; i < N * 2; i++) { const v = sp[i < N ? i : 2 * N - 1 - i], a = i / (N * 2) * Math.PI * 2 - Math.PI / 2 + VZ.rot * .15, r0 = R * 1.12, r1 = r0 + R * .06 + v * R * .55; g.strokeStyle = `hsla(${h + i * 1.2} 100% 78% / .92)`; g.beginPath(); g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0); g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1); g.stroke(); }
-  } else if (m === 1) {
-    const bw = W / N, y0 = H * .7; for (let i = 0; i < N; i++) { const bh = Math.max(4, sp[i] * H * .2), x = i * bw + bw * .2; const q = g.createLinearGradient(0, y0 - bh, 0, y0); q.addColorStop(0, `hsla(${h + 25} 100% 82% / .95)`); q.addColorStop(1, `hsla(${h} 100% 58% / .75)`); g.fillStyle = q; rr(g, x, y0 - bh, bw * .6, bh, bw * .3); g.fill(); }
-  }
-  vinyl(g, cx, cy, R, h);
-  if (VZ.rec && cur) { // при записи клипа название рисуем прямо на картинке
-    g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff'; g.font = `800 ${Math.round(W * .05)}px sans-serif`; g.fillText(cur.title.length > 30 ? cur.title.slice(0, 29) + '…' : cur.title, W / 2, H * .84);
-    g.fillStyle = 'rgba(255,255,255,.7)'; g.font = `600 ${Math.round(W * .035)}px sans-serif`; g.fillText('sayr0xx player', W / 2, H * .89);
-  }
+  const c = $('#viz-cv'), g = c.getContext('2d'), W = c.width, H = c.height;
+  if (VZ.rec && VZ.rc) { // запись: рисуем в Full HD, а на экране показываем ту же картинку
+    scene(VZ.rg, VZ.rc.width, VZ.rc.height, h, true); const s = Math.max(W / VZ.rc.width, H / VZ.rc.height), sw = W / s, sh = H / s; g.drawImage(VZ.rc, (VZ.rc.width - sw) / 2, (VZ.rc.height - sh) / 2, sw, sh, 0, 0, W, H);
+  } else scene(g, W, H, h, false);
 }
 
 /* ---------- Видеоклип из визуализатора ---------- */
 async function vizRec() {
   if (VZ.rec) return; if (!window.MediaRecorder) return toast('Запись видео не поддерживается этим браузером');
-  const cvs = $('#viz-cv'); if (!cvs.captureStream) return toast('Запись видео не поддерживается этим браузером');
-  const vs = cvs.captureStream(30); let at = null;
+  const rc = document.createElement('canvas'); rc.width = 1080; rc.height = 1920; const rg = rc.getContext('2d'); // Full HD, вертикально, как сторис
+  if (!rg || !rc.captureStream) return toast('Запись видео не поддерживается этим браузером');
+  VZ.rc = rc; VZ.rg = rg; const vs = rc.captureStream(30); let at = null;
   try { if (eq.master && eq.ctx) { if (!VZ.dest) { VZ.dest = eq.ctx.createMediaStreamDestination(); eq.master.connect(VZ.dest); } at = VZ.dest.stream.getAudioTracks()[0]; } else if (audio.captureStream) at = audio.captureStream().getAudioTracks()[0]; } catch (e) {}
   if (at) vs.addTrack(at);
   const mt = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m)) || '', ch = [];
-  const mr = new MediaRecorder(vs, Object.assign({ videoBitsPerSecond: 1.6e6, audioBitsPerSecond: 96e3 }, mt ? { mimeType: mt } : {})); VZ.mr = mr;
+  const mr = new MediaRecorder(vs, Object.assign({ videoBitsPerSecond: 2.5e6, audioBitsPerSecond: 96e3 }, mt ? { mimeType: mt } : {})); VZ.mr = mr;
   mr.ondataavailable = e => e.data.size && ch.push(e.data);
-  mr.onstop = () => { VZ.rec = 0; clearInterval(VZ.recT); const ty = (mr.mimeType || mt || 'video/webm').split(';')[0]; VZ.clip = new Blob(ch, { type: ty }); VZ.ext = ty.includes('mp4') ? 'mp4' : 'webm'; $('#viz-rec').textContent = '● Клип 15 с'; $('#viz-share').hidden = false; $('#viz-save').hidden = !(tg && tg.initData); toast('Клип готов!'); };
+  mr.onstop = () => { VZ.rec = 0; VZ.rc = VZ.rg = null; clearInterval(VZ.recT); const ty = (mr.mimeType || mt || 'video/webm').split(';')[0]; VZ.clip = new Blob(ch, { type: ty }); VZ.ext = ty.includes('mp4') ? 'mp4' : 'webm'; $('#viz-rec').textContent = '● Клип 12 с · Full HD'; $('#viz-share').hidden = false; $('#viz-save').hidden = !(tg && tg.initData); toast('Клип готов!'); };
   if (audio.paused) audio.play().catch(() => {}); $('#viz-share').hidden = $('#viz-save').hidden = true; mr.start(); VZ.rec = Date.now();
-  VZ.recT = setInterval(() => { const s = 15 - Math.floor((Date.now() - VZ.rec) / 1000); $('#viz-rec').textContent = '● Запись… ' + Math.max(0, s) + ' с'; if (s <= 0 && mr.state === 'recording') mr.stop(); }, 500);
+  VZ.recT = setInterval(() => { const s = 12 - Math.floor((Date.now() - VZ.rec) / 1000); $('#viz-rec').textContent = '● Запись… ' + Math.max(0, s) + ' с'; if (s <= 0 && mr.state === 'recording') mr.stop(); }, 500);
 }
 async function vizSave() { // в Telegram: бот присылает видео в чат, оттуда оно сохраняется в галерею
   if (!VZ.clip) return; if (VZ.clip.size > 4.4e6) { toast('Клип великоват для отправки в чат — открываю обычное сохранение'); return vizShare(); }
