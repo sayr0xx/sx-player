@@ -21,6 +21,7 @@ module.exports = async (req, res) => {
   if (!process.env.BOT_TOKEN || !DB || !TK) return res.status(500).json({ error: 'env' });
   let b = req.body || {}; if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }
   const u = verify(b.initData); if (!u) return res.status(401).json({ error: 'auth' });
+  const pidOf = x => crypto.createHash('sha256').update('sx-pid:' + process.env.BOT_TOKEN + ':' + x).digest('hex').slice(0, 16); // тот же код, что в топе
   const id = String(u.id), name = String(u.first_name || u.username || 'Аноним').slice(0, 30);
   try {
     if (b.action === 'set') {
@@ -31,20 +32,7 @@ module.exports = async (req, res) => {
     if (b.action === 'list') {
       const [ids] = await redis([['SMEMBERS', 'live:users']]); if (!ids || !ids.length) return res.json({ items: [] });
       const vals = (await redis([['MGET', ...ids.map(i => 'live:' + i)]]))[0], items = [], dead = [];
-      ids.forEach((i, k) => { if (!vals[k]) dead.push(i); else { const o = JSON.parse(vals[k]); if (o.track) items.push({ id: o.id, name: o.name, track: o.track, me: o.id === id }); } });
+      ids.forEach((i, k) => { if (!vals[k]) dead.push(i); else { const o = JSON.parse(vals[k]); items.push({ id: o.id, name: o.name, track: o.track || '', pid: pidOf(o.id), me: o.id === id }); } });
       if (dead.length) redis([['SREM', 'live:users', ...dead]]).catch(() => {});
       return res.json({ items: items.slice(0, 30) });
     }
-    if (b.action === 'react') {
-      const to = String(b.to || ''); if (!/^\d+$/.test(to) || to === id) return res.status(400).json({ error: 'bad' });
-      const e = ['🔥', '❤️', '👏'].includes(b.emoji) ? b.emoji : '🔥';
-      await redis([['LPUSH', 'react:' + to, JSON.stringify({ name, emoji: e, track: String(b.track || '').slice(0, 60) })], ['LTRIM', 'react:' + to, '0', '19'], ['EXPIRE', 'react:' + to, '3600']]);
-      return res.json({ ok: 1 });
-    }
-    if (b.action === 'reacts') {
-      const [items] = await redis([['LRANGE', 'react:' + id, '0', '19'], ['DEL', 'react:' + id]]);
-      return res.json({ items: (items || []).map(x => JSON.parse(x)) });
-    }
-    return res.status(400).json({ error: 'bad' });
-  } catch (e) { return res.status(502).json({ error: 'db' }); }
-};
