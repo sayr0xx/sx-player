@@ -602,7 +602,8 @@ main{max-width:none;margin:0;padding-left:max(18px,env(safe-area-inset-left));pa
     <div class="glass card"><h3>Важно</h3><p>Музыка хранится только на этом устройстве, внутри Telegram или браузера. Очистка данных или кэша Telegram либо браузера может удалить локальную библиотеку. Оригиналы файлов лучше сохранить отдельно.</p></div>
     <div class="glass card"><h3>Бот @sayr0xxsongbot</h3><p>Автодобавление треков из бота пока недоступно: нужен backend (бот, сервер и защищённый API). Mini App не может читать чат Telegram напрямую. Сейчас работает ручное добавление файлов.</p></div>
     <div class="glass card"><h3>Диагностика</h3><p id="diag">Ошибок нет.</p>
-      <button class="ghost" data-act="lbcheck">Проверить сервер топа</button><p id="lbcheck"></p></div>
+      <button class="ghost" data-act="lbcheck">Проверить сервер топа</button><p id="lbcheck"></p>
+      <button class="ghost" data-act="avcheck">Проверить аватарки</button><p id="avcheck" style="white-space:pre-wrap;word-break:break-word"></p></div>
     <div class="glass card"><h3>Библиотека</h3><button class="ghost danger" data-act="clear">Удалить всю библиотеку</button>
       <button class="ghost danger" data-act="resetstats">Сбросить статистику</button></div>
   </section>
@@ -1261,6 +1262,7 @@ document.addEventListener('click', async e => {
   else if (a === 'playfav') { const f = tracks.filter(t => t.fav).map(t => t.id); if (!f.length) return toast('В избранном пока пусто'); play(f[0], f); }
   else if (a === 'lbtoggle') lbToggle();
   else if (a === 'lbcheck') lbCheck();
+  else if (a === 'avcheck') avCheck();
   else if (a === 'resetstats') {
     if (!await ask('Сбросить всю статистику прослушивания?')) return;
     await tx('stats', 'readwrite', s => s.clear()).catch(() => {}); stats = {}; render(false); toast('Статистика сброшена');
@@ -1357,6 +1359,18 @@ async function lbToggle() {
   else { lbSet(true); lbLoad(true); }
   renderLb();
 }
+async function avCheck() { // что именно мешает аватаркам: сервер не шлёт код, или файл api/avatar.js не работает
+  const out = $('#avcheck'); out.textContent = 'Проверяю…'; if (!(tg && tg.initData)) return out.textContent = 'Открой приложение внутри Telegram';
+  try { await lbLoad(false); } catch (e) {}
+  const top = (lbData && lbData.top) || []; if (!top.length) return out.textContent = 'В топе пока никого — вступи в топ и проверь ещё раз';
+  const L = [];
+  for (const u of top.slice(0, 3)) {
+    if (!u.pid) { L.push(`${u.name}: сервер не прислал код аватарки (pid)`); continue; }
+    try { const r = await fetch('/api/avatar?p=' + u.pid + '&debug=1'), ty = r.headers.get('content-type') || ''; L.push(`${u.name}: ` + (ty.includes('json') ? (await r.text()).slice(0, 260) : `ответ ${r.status} (старый файл avatar.js — обнови)`)); } catch (e) { L.push(`${u.name}: нет связи с /api/avatar`); }
+  }
+  const me = tg.initDataUnsafe && tg.initDataUnsafe.user; L.push('Твоё фото из Telegram: ' + (me && me.photo_url ? 'есть' : 'нет (скрыто настройками приватности)'));
+  out.textContent = L.join('\n');
+}
 async function lbCheck() { // подсказка, что именно не настроено на сервере
   const out = $('#lbcheck'); out.textContent = 'Проверяю…';
   try {
@@ -1372,7 +1386,8 @@ const NOTE = '<svg viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6.
 const CROWN = '<svg viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z"/></svg>';
 function lbAvatar(u) { // аватарка по публичному коду; если фото нет — буква на цветном фоне
   const ini = esc([...(u.name || '?').replace('@', '')][0] || '?').toUpperCase(), o = hue({ title: u.name || '' });
-  return `<div class="fb" style="--o:${o}">${ini}</div>` + (u.pid ? `<img class="av" alt="" loading="lazy" src="/api/avatar?p=${u.pid}">` : '');
+  const mine = u.me && tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.photo_url; // своё фото Telegram отдаёт сам, без сервера
+  return `<div class="fb" style="--o:${o}">${ini}</div>` + (u.pid ? `<img class="av" alt="" loading="lazy" src="/api/avatar?p=${u.pid}">` : '') + (mine ? `<img class="av" alt="" referrerpolicy="no-referrer" src="${esc(mine)}">` : '');
 }
 function renderLb() {
   const on = lbOn(); let h;
