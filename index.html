@@ -260,13 +260,13 @@ h1{font-size:44px}
 .nav button{flex-direction:row;justify-content:flex-start;gap:14px;padding:0 20px;font-size:15px}
 .nav button:not(.on) span{display:inline}
 .pill{top:14px;bottom:auto;left:10px;width:calc(100% - 20px);height:56px;transform:translateY(calc(var(--i,0)*62px))}
-#v-music.active{display:grid;grid-template-columns:minmax(360px,440px) 1fr;gap:0 44px;align-items:start}
+#v-music.active{display:grid;grid-template-columns:minmax(360px,440px) minmax(0,1fr);gap:0 44px;align-items:start}
 .colL{position:sticky;top:32px}
 .car{margin:0 -6px;padding:6px 6px 14px;scroll-padding:0 6px}
 .list{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:0 12px}
 .list>.empty{grid-column:1/-1}
 #v-stats,#v-fav,#v-queue{max-width:1000px}
-#v-set.active{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:1000px;align-content:start}
+#v-set.active{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;max-width:1000px;align-content:start}
 #v-set h1{grid-column:1/-1;margin-bottom:4px}
 #v-set .card{margin-bottom:0}
 .art{width:270px}
@@ -443,7 +443,7 @@ body.has-i main{padding-top:calc(var(--st) + 62px)}
 /* Телефон горизонтально: плеер слева, список справа */
 @media (orientation:landscape) and (max-height:520px) and (max-width:899px){
 main{max-width:none;margin:0;padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
-#v-music.active{display:grid;grid-template-columns:minmax(250px,40%) 1fr;gap:0 24px;align-items:start}
+#v-music.active{display:grid;grid-template-columns:minmax(250px,40%) minmax(0,1fr);gap:0 24px;align-items:start}
 .colL{position:sticky;top:8px}
 .art{width:min(42vh,230px);margin:4px auto 12px}
 .np-ctl .big{width:56px;height:56px}
@@ -508,6 +508,28 @@ main{max-width:none;margin:0;padding-left:max(18px,env(safe-area-inset-left));pa
 .viz-modes::-webkit-scrollbar{display:none}
 .vmb{flex:none;padding:8px 14px;border-radius:999px;font:700 12px inherit}
 .vmb.on{background:var(--a)!important;color:var(--ink)}
+
+/* Исправления: ничего не должно выходить за экран */
+html,body{max-width:100%;overflow-x:clip}
+.colL,.colR,.view{min-width:0}
+.sgrid>*,.quick>*,.player-tools>*,.modes>*,.timer-grid>*,.ach>*,.lbtop>*,.pgrid>*{min-width:0}
+.quick,.player-tools,.sgrid{grid-template-columns:repeat(var(--cols,4),minmax(0,1fr))}
+.sgrid{--cols:3}
+.qa span,.tool-btn b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool-btn{overflow:hidden}
+.stat b{overflow-wrap:anywhere}
+img,canvas,svg{max-width:100%}
+/* Затемнение сверху: контент не наезжает на часы, батарею и кнопки Telegram */
+body::before{content:"";position:fixed;left:0;right:0;top:0;height:calc(var(--st) + 22px);z-index:14;pointer-events:none;background:linear-gradient(180deg,rgb(0 0 0 / .6),rgb(0 0 0 / .38) 55%,transparent)}
+@media (min-width:900px){
+body::before{display:none}
+.colL{max-height:calc(100vh - 64px);overflow-y:auto;scrollbar-width:none}
+.colL::-webkit-scrollbar{display:none}
+.viz-card,.viz-modes{left:50%;right:auto;width:min(560px,calc(100% - 28px));transform:translateX(-50%)}
+.viz-btns{left:50%;right:auto;width:min(560px,calc(100% - 28px));transform:translateX(-50%)}
+.wp{padding-left:max(32px,calc(50% - 300px));padding-right:max(32px,calc(50% - 300px))}
+.ov .wdots{bottom:28px}
+}
 </style>
 </head>
 <body>
